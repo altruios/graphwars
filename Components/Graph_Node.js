@@ -21,15 +21,20 @@ class Graph_Node {
         this.win_count=0;
 	}
     no_function_copy(){
-        return {x:this.x, 
-		y:this.y,
-		id:this.id,
-		r:this.r,
-		type:this.type,
-		connections:this.connections.map(x=>({x:x.x,y:x.y})),
-		is_activated:this.is_activated=true,  
-		fitness:this.fitness,
-        last_performance:this.last_performance}
+        return {
+			x:this.x, 
+			y:this.y,
+			id:this.id,
+			r:this.r,
+			type:this.type,
+			connections:this.connections.map(x=>({x:x.x,y:x.y,connections:x.connections.map(y=>({x:y.x,y:y.y,connections:y.connections.map(z=>({x:z.x,y:z.y}))}))})),
+			is_activated:this.is_activated=true,  
+			fitness:this.fitness,
+			last_performance:this.last_performance,
+			last_move_vec_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
+			last_move_vec_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
+
+		}
     }
     scatter(){
         this.connections.forEach(other_node=>this.disconnect(other_node))
@@ -92,8 +97,9 @@ class Graph_Node {
 		}
 	}
 	update_r() {
+		const fitness_range = MapRange(this.fitness,[1,30000],[1,10])
 		const update_r = this.connections.length
-		this.r = this.fitness / 100 + (update_r + 1);
+		this.r = fitness_range * (update_r);
         this.r=Math.max(5,this.r);
 	}
 	update_color() {
@@ -161,4 +167,9 @@ class Graph_Node {
 		return angle;
 	}
 }
+
+const MapRange=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
+const Map_R_Pos=(val,o_r)=>MapRange(val,o_r,[0,1]);
+const Map_R_Real=(val,o_r)=>MapRange(val,o_r,[-1,1]);
+
 export default Graph_Node

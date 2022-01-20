@@ -1,17 +1,18 @@
 <html>
     <body>
         hello world 2
+        <canvas id="canvas" height="1080" width="1920"></canvas>
+        <div id="display"></div>
     </body>
+    <script src="./draw_controller.js"></script>
     <script>
+        const canvas = document.getElementById('canvas')
+        const display = document.getElementById('display');
+        display.style.display="flex";
+        display.style.flexFlow="column nowrap"
        //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/
-       console.log("hello world")
-        async function get_data(){
-            console.time("datafetch")
-            const data = await fetch("/get_current_data");
-          //  console.log("data",data);
-            console.timeEnd("datafetch")
+        const board = new Board(canvas,display)
+        board.set_height_and_width().then(()=>board.run())
 
-        }
-        get_data()
     </script>
 </html>

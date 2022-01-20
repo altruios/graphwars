@@ -12,13 +12,14 @@ class Controller {
 		this.stats=[];//array of 'stats' object - data from the games
 		this.best_fitness = 0;
 		this.stop=false;
-        this.max_render_count = 10000;
+        this.max_render_count = 5000;
 		this.epoc_level=2000;
         this.catch_range = 100;
 		this.max_range = 200;
 		this.render_count = 0;
 		this.game_count = 0;
 		this.brain_template = null;
+		this.fitest_node=null;
         this.init_collection();
 		this.run.bind(this);
 		}
@@ -26,6 +27,7 @@ class Controller {
 		for (let i = 0; i < this.node_count; i++) {
 			this.add_node()
 		}
+		this.fitest_node=this.collections[0]
 	}
 	set_catch(num) {
 		this.catch_range = num;
@@ -60,7 +62,7 @@ class Controller {
 				if (distance <= 0 && this.get_living_nodes().length > 0) {
 					if (eater.type == eatee.type) {
 						eater.change_type();
-						eater.update_fitness(-Math.floor(eatee.fitness));
+						eater.fitness=1;
 						eatee.set_is_activated(false);
 					} else {
 						eatee.change_type();
@@ -111,11 +113,10 @@ class Controller {
 		const randt = Math.random() > 0.3 ? "A" : Math.random() > 0.3 ? "B" : "C";
 		this.collections.push(new Node(randx, randy, randt, this));
 	}
-	get_fitest_val() {
-		return Math.max.apply(Math, this.collections.map((o) => o.fitness))
-	}
-	get_fitest_node() {
-		return this.get_living_nodes().find(x => x.fitness >= this.get_fitest_val())
+
+	find_fitest_node(nodes){
+		return nodes.sort((a,b)=>b.fitness-a.fitness)[0]
+
 	}
     get_living_nodes(){
 		//debug
@@ -125,9 +126,9 @@ class Controller {
 	render() {
         const living_nodes = this.get_living_nodes();
         const triangles = this.get_all_triangles(living_nodes);
+
 		this.reward_triangles(triangles)
 		this.step(living_nodes);
-
 		this.render_count++;
 		
 	}
@@ -137,11 +138,11 @@ class Controller {
 			that.run(that);
 			console.timeEnd("runtime")
 			
-			console.log("rendercount:",that.render_count,that.get_living_nodes().length,"living nodes total")
-			const fitest_node = that.get_fitest_node();
+			console.log("rendercount:",that.render_count,that.get_living_nodes().length,"living nodes total", " trig count",that.get_all_triangles(that.get_living_nodes()).length)
+			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			console.log('fittest node:',fitest_node.id," fitness",fitest_node.fitness, "pos: ",fitest_node.x.toFixed(0),fitest_node.y.toFixed(0),"connections: length ",fitest_node.connections.length)
 
-		},1)
+		},25)
 		
 	}
 	timeTest(fn,args){
@@ -194,7 +195,7 @@ class Controller {
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
 		console.log("fitest node is:");
-		const fitest = this.get_fitest_node();
+		const fitest = this.find_fitest_node(this.get_living_nodes());
 		fitest.win_count++;
 		console.log(fitest.id);
 		console.log(fitest.fitness, "vs champion of:", this.best_fitness)
@@ -212,12 +213,28 @@ class Controller {
 
 	full_json_data(){
 		const game_stats = this.get_game_stats();		
-		const nodes = this.collections.map(x=>x.no_function_copy());
-		return {game_stats,nodes}	
-	
+		const nodes = this.get_living_nodes().map(x=>x.no_function_copy());
+		const triangles = this.get_all_triangles(this.get_living_nodes());
+		const small_triangles = triangles.map(x=>x.map(n=>(n.no_function_copy())))
+		return {game_stats,nodes,triangles:small_triangles}	
+	}
+	get_selected_node(selected_id){
+		return this.collections.find(x=>x.id==selected_id)
+	}
+	get_node_info(selected_id){
+		const node = this.get_selected_node(selected_id);
+		return node.no_function_copy()
 	}
 	get_game_stats(){
-		return {todo:"this is a todo"}
+		return {
+			todo:"this is a todo",
+			width:this.width,
+			height:this.height,
+			render_count:this.render_count,
+			best_fitness:this.best_fitness,
+			catch_range:this.catch_range,
+			max_range:this.max_range
+		}
 	}
 
 }

@@ -1,6 +1,6 @@
 import express from 'express'
-import Controller from './Controller.js'
-const game = new Controller(420,4700,3080);
+import Controller from './Components/Controller.js'
+const game = new Controller(320,780,1620);
 
 
 
