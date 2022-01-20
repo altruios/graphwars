@@ -1,0 +1,17 @@
+<html>
+    <body>
+        hello world 2
+    </body>
+    <script>
+       //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/
+       console.log("hello world")
+        async function get_data(){
+            console.time("datafetch")
+            const data = await fetch("/get_current_data");
+          //  console.log("data",data);
+            console.timeEnd("datafetch")
+
+        }
+        get_data()
+    </script>
+</html>

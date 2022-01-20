@@ -1,0 +1,17 @@
+{
+  "name": "graphwars",
+  "version": "1.0.0",
+  "description": "genetic algorithm stuff on a graph",
+  "main": "index.js",
+  "type":"module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.2",
+    "nodemon": "^2.0.15"
+  }
+}

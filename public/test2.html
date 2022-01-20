@@ -1,0 +1,787 @@
+
+
+<html>
+
+    <body>
+
+        <canvas height="1080" width="1400" id="canvas"></canvas>
+
+    </body>
+
+<script>
+
+const canvas = document.getElementById('canvas');
+
+const ctx = canvas.getContext("2d");
+const amount_to_seed=130
+function random_int(min,max){
+
+    return Math.floor(Math.random() * (max - min) + min);
+
+}
+
+class Board{
+
+    constructor(canvas,ctx){
+
+        this.height=Math.floor(canvas.height);
+
+        this.width=Math.floor(canvas.width);
+
+        this.canvas=canvas;
+
+        this.ctx=ctx;
+
+        this.collection=[];
+        this.connections=[];
+
+        this.init_collection();
+        this.catch_connections_length=90;
+
+        this.blank_color="#000000"
+        this.spawn_count=0;
+
+    }
+
+    init_collection(){
+        for(let i=0;i<amount_to_seed;i++){
+            this.add_node();//nothing specific - all random
+        }                
+    }
+    clear_all_connections(){
+        this.connections = [];
+    }
+    clear_all_nodes(){
+        this.collection=[];
+        this.clear_all_connections();
+    }
+    toggle_label_flag_for_nodes(){
+        this.collection.forEach(n=>n.toggle_label_flag())
+    }
+    add_node(x,y,t){
+        //by param or no param;
+        const _x = x ?? Math.floor(Math.random()*this.width);
+        const _y = y ?? Math.floor(Math.random()*this.height);
+        const _t = t ?? Math.random()<0.333?Math.random()<0.333?"A":"B":"C";
+
+        this.collection.push(new Node(_x,_y,_t));
+    }
+    draw(){
+
+        this.ctx.fillStyle="#ffffff"
+
+        this.collection.forEach(node=>node.draw(this.ctx))
+
+        this.connections.forEach(c=>c.draw(this.ctx))
+
+    }
+
+    step(){
+
+        this.update_connections();
+
+
+        //console.log("handling eat");
+
+        this.handle_eat();
+
+ 
+
+    }
+
+ 
+
+    blank(){
+
+        this.ctx.fillStyle=this.blank_color
+
+        this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height)
+
+    }
+    set_blank_color(c){
+        this.blank_color=c;
+    }
+    render(){
+
+        console.log("rendering")
+
+
+ 
+
+        this.blank()
+        this.step();
+        this.handle_remove();
+        this.debug();
+
+        this.draw();
+
+
+    }
+    spawn_new(){
+        for(let i=0;i<this.spawn_count;i++){
+            this.add_node();
+        }
+        this.spawn_count=0;
+    }
+    add_spawn(){
+        this.spawn_count++;
+    }
+    update_collection(){
+        this.spawn_new()
+        this.collection.forEach(node=>node.update())
+
+    }
+    update_connections(){
+        this.find_new_connections();
+   //     this.catch_dupes_maybe();
+        this.connections.forEach((conn,i,arr)=>conn.update())
+
+         
+
+           
+
+   
+
+       
+
+    }
+    find_new_connections(){
+
+        this.collection.forEach((node,i,arr)=>{
+
+            const distance_near = this.catch_connections_length
+
+            const matches = arr.filter(x=>(node.get_inner_distance_between(x)<distance_near)&&x.id!=node.id)
+
+            this.add_connections(node, matches);
+
+        })
+    }
+    
+    add_connections(node,nodes){
+
+        nodes.forEach(b=>this.make_connection(node,b));
+
+    }
+
+    remove_connection(conn){
+
+        const remove_index = this.connections.indexOf(conn)
+
+        this.connections.splice(remove_index,1);
+
+    }
+
+    remove_node(node){
+
+        const conn_list=this.connections.filter(c=>c.has(node));
+        conn_list.forEach(c=>this.remove_connection(c));
+
+        //for each node's connection we filter that it does not have this node attached;
+
+        const remove_index = this.collection.indexOf(node)
+
+        this.collection.splice(remove_index,1);
+
+ 
+
+    }
+
+    handle_eat(){
+
+        this.connections.forEach(connection=>{
+
+            const eater = connection.t1.r>connection.t2.r?connection.t1:connection.t2;
+
+            const eatee = connection.getOtherThing(eater);
+
+            console.assert(eater.id!=eatee.id,"failed?")
+
+            const distance = eater.get_inner_distance_between(eatee);
+
+        
+
+            if(distance<=0 && this.collection.length>0){
+                eatee.r/=Math.PI;
+                eater.r+=eatee.r
+                if(eatee.r>(eatee.r*5)) eatee.remove();
+                else{
+                    eatee.set_xy_from_node(eater)
+                }
+                //spawn a new one
+                this.add_node()
+            }
+
+        })
+
+    }
+
+    handle_remove(){
+        this.connections.forEach(conn=>conn._can_be_removed?this.remove_connection(conn):null)
+        this.collection.forEach(node=>node._can_be_removed?this.remove_node(node):null)
+    }
+    make_connection(node,other_node){
+
+        const con = new Connection(node,other_node)
+
+        const already_have = !! this.connections.find(x=>x.isEqual(con));
+
+        if(!already_have){
+
+            this.connections.push(con);
+
+        }
+
+    }
+
+    test(x){
+
+        this.get_network(this.collection[x])
+
+    }
+
+    get_network(node){
+
+        const network=[];
+
+        const thingToCheck=[];
+
+        const arr=this.collection;
+
+        const collection = this.collection;
+
+        const connections = this.connections;
+
+        const checked_connections=[];
+
+ 
+
+        const thing_extractor = conn=>[conn.t1,conn.t2];
+
+        const connect_finder = node => connections.filter(x=>x.has(node))
+
+        const traveler = (thing)=>{
+
+            if(thing.type=="Connection"){
+
+                network.push(...thing_extractor(thing))
+
+ 
+
+               
+
+            }else{
+
+                const nextConnections = connect_finder(thing);
+
+                if(nextConnections ==undefined){
+
+                    console.log("error", thing)
+
+                }
+
+                else{
+
+                    nextConnections.forEach(c=>checked_connections.push(c))
+
+                    nextConnections.forEach(c=>traveler(c))
+
+                }
+
+            };
+
+        }
+
+        thingToCheck.push(node);
+
+       
+
+        thingToCheck.forEach(node=>{
+
+            traveler(node);
+
+        })
+
+ 
+
+        return [...network].filter(x=>x.id!==node.id);
+
+ 
+
+    }
+
+
+
+    debug(){
+
+       // console.log("debug");
+
+        const node= this.collection[0]
+    }
+
+}
+
+class Node{
+
+    constructor(x,y,type){
+
+
+        this.id=`id-${x}-${y}`;
+        this.type=type
+        this.x=x;
+
+        this.y=y;
+
+        this.r=Math.floor(Math.random()*20);
+        this.max_r=100
+        this.color="";
+        this.border_width=1;
+        this.border_color=""
+
+        this.R=0;
+
+        this.G=0;
+
+        this.B=0;
+
+        this.isBiggest=false;
+
+        this.isSmallest=false;
+
+        this.solo=true;
+        this.connections = [];
+        this._drawLabel=false;
+        this.move_vector=[0,0];
+    }
+    toggle_label_flag(){
+        this._drawLabel =!this._drawLabel;
+    }
+    distance_from_centers(other_node){
+
+        if (!other_node){return null}
+
+        const dx = (other_node.x-this.x);
+
+        const dy = (other_node.y-this.y);
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+        //console.log(df,this.x,this.y, "from",other_node.x,other_node.y);
+
+        return Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2))
+
+    }
+
+    get_inner_distance_between(other_node){
+
+       
+
+        if (!other_node){return null}
+
+        const dx = (other_node.x-this.x);
+
+        const dy = (other_node.y-this.y);
+
+        const rt = other_node.r+this.r;
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+        //console.log(df,this.x,this.y, "from",other_node.x,other_node.y);
+
+        return Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2)) - rt
+
+    }
+
+    colorize(){
+       const rgb=[0,0,0,255];
+        if(this.solo){
+            rgb[0]=80
+            rgb[0]=40
+            rgb[0]=140
+        }else if(this.isBiggest){
+            rgb[0]=140
+            rgb[0]=40
+            rgb[0]=100
+
+        }else if(this.isSmallest){
+
+            rgb[0]=14
+            rgb[0]=90
+            rgb[0]=30
+        }
+        this.type=="A"?rgb[0]+=80:null;
+        this.type=="B"?rgb[1]+=80:null;
+        this.type=="C"?rgb[2]+=80:null;
+
+        this.border_width=2;
+        const border_colors = rgb.map(x=>MapRange(x,[0,255],[40,200]))
+        this.border_color=`rgb(${border_colors[0]},${border_colors[1]},${border_colors[2]})`; //todo
+        this.color=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`
+       
+
+    }
+
+ 
+
+    draw(ctx){
+        this._drawLabel=true;
+        if(this._drawLabel){
+            ctx.fillStyle="#00AA00"
+            ctx.font = '18px serif';
+            ctx.fillText(this.type, this.x, this.y+this.r+20);        }
+
+        ctx.fillStyle=this.color;
+        ctx.lineWidth=this.border_width;
+        ctx.strokeStyle=this.border_color;
+    //    ctx.strokeStyle=this.border_color;
+        ctx.beginPath();
+
+        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+        ctx.stroke();
+
+        ctx.fill();    
+    }
+
+ 
+    connection_move(move_dir){
+        this.x+=move_dir[0];
+        this.y+=move_dir[1];
+    }
+    move(){
+        if(this.connections.length>0){
+         return   
+        }
+        //move towards connected nodes always.
+
+        //move away from unconnected nodes if they are bigger
+
+        //move toward unconnected nodes if smaller
+        const connected_nodes=this.connections.map(x=>x.getOtherThing(this))
+
+        const connected_bigger = connected_nodes.filter(b=>b.r>this.r);
+
+        const connected_smaller = connected_nodes.filter(b=>b.r<this.r);
+
+        this.isBiggest=connected_nodes.length==connected_smaller.length;
+
+        this.isSmallest=connected_nodes.length==connected_bigger.length;
+        
+        const move_vector = [(Math.random()-.5)/this.r*1.5*Math.PI,(Math.random()-.5)/this.r*1.5*Math.PI]
+        console.log(move_vector,"is move vector")
+
+        const x=this.x;
+        const y=this.y;
+
+        this.move_vector[0]=Math.sin((this.move_vector[0]+move_vector[0])/2)*this.r
+        this.move_vector[1]=Math.cos((this.move_vector[1]+move_vector[1])/2)*this.r
+
+
+
+        this.change_r()
+        this.x+=this.move_vector[0]/(Math.PI*2)
+
+        this.y+=this.move_vector[1]/(Math.PI*2);
+
+       
+
+    }
+    change_r(){
+        if(this.solo){
+            this.r-=0.001;
+        
+        }
+        else if(this.isSmallest ){
+            this.r+=0.001;
+        }
+        else if(this.isBiggest){
+            this.r-=0.001;
+        }
+        else{
+            this.r+=0.001;
+        }
+        this.r=Math.max(1,this.r);
+    }
+    update(){
+
+        this.colorize();
+
+        this.move();
+
+        if(this.r>this.max_r){
+            this.connections.forEach(conn=>conn.remove());
+            this._can_be_removed=true;
+        }
+    }
+    set_xy_from_node(other_node){
+        const a= this.get_angle(other_node);
+        const h = this.r+other_node.r;
+        
+        const xy_pos=[0,0];
+        xy_pos[0]=Math.cos(a)*h;
+        xy_pos[1]=Math.sin(a)*h;
+        this.set_pos(xy_pos);
+
+    }
+    set_pos(pos_arr){
+        this.x=pos_arr[0];
+        this.y=pos_arr[1];
+    }
+    get_angle(other_node){
+
+        const dx = other_node.x-this.x;
+
+        const dy = other_node.y-this.y;
+
+        const angle = Math.atan(dy,dx);
+
+        return angle;
+
+    }
+    connection_take(conn){
+        if(this.connections.some(c=>c.isEqual(conn))){
+            return false
+        }
+        this.connections.push(conn);
+        return true;
+    }
+    connection_break(conn){
+        const index = this.connections.indexOf(conn);
+        index?this.connections.splice(index,1):console.error("index not founnd for conn", conn,index);
+
+    }
+
+}
+
+ 
+
+class Connection{
+
+    constructor(thing1,thing2){
+
+        console.assert(thing1.id!=thing2.id,"can not add self to self");
+
+        this.type="Connection"
+
+ 
+
+        this.t1=thing1;
+
+        this.t2=thing2;
+        this.t1.connection_take(this);
+        this.t2.connection_take(this);
+        this.max_distance = this.get_max_distance();
+        this.length=this.get_current_length();
+        this.border_width=0.1;
+        this.color=[102,120,20];
+        this.color_dir=[true,true,true];
+        this.color_vals=[1,2,3]
+
+    }
+
+    get_smallest_things_r(){
+        return this.t1.r<=this.t2.r?this.t1.r:this.t2.r;
+    }
+    get_max_distance(){
+        const type1 =this.t1.type;
+        const type2=this.t2.type;
+        const types = [type1,type2].sort((a,b)=>a<b)
+        console.log(types);
+
+        const hex_string=types.join("");
+        const hex_num = parseInt(hex_string,16)
+        const dec_num = parseInt(hex_num,10);
+        return dec_num
+    }
+    isEqual(connection){
+
+        if(this.has(connection.t1) && this.has(connection.t2))
+
+            return true
+
+        return false
+
+    }
+
+    has(thing){
+
+        if(thing.id==this.t1.id || this.t2.id==thing.id)
+
+            return true
+
+        return false
+
+    }
+
+    get_by_id(id){
+
+        if(this.t1.id===id) return this.t1
+
+        else if(this.t2.id===id) return this.t2
+
+        else return -1
+
+    }
+    get_smaller_thing(){
+        return this.t1.r<this.t2.r?this.t1:this.t2;
+     
+    }
+    get_bigger_thing(){
+        return this.t1.r>this.t2.r?this.t1:this.t2;
+    }
+    getOtherThing(thing){
+
+        if(this.t2.id != thing.id && this.t1.id != thing.id) return -1
+
+        if(this.t2.id == thing.id) return this.t1
+
+        if(this.t1.id == thing.id) return this.t2
+
+    }
+
+
+    draw(ctx){
+        ctx.beginPath();
+        ctx.strokeStyle =this.color_string();
+        ctx.lineWidth=this.border_width;
+        ctx.moveTo(this.t1.x,this.t1.y);
+        ctx.lineTo(this.t2.x,this.t2.y);
+        ctx.stroke();
+    }
+
+    impluse(){
+        const move_vector_bigger=[0,0]
+        const move_vector_smaller=[0,0]
+        const smaller_node = this.get_smaller_thing()
+        const bigger_node = this.get_bigger_thing()
+        const a_angle=bigger_node.get_angle(smaller_node);
+        const b_angle=smaller_node.get_angle(bigger_node);
+
+        if(this.has_type("A") && !this.has_type("B")){
+            //A wins = inward
+
+            move_vector_bigger[0]+=Math.cos(a_angle);
+            move_vector_bigger[1]+=Math.sin(a_angle);
+            move_vector_smaller[0]+=Math.cos(b_angle);
+            move_vector_smaller[1]+=Math.sin(b_angle);
+
+        }else if(this.has_type("B") && !this.has_type("C")){
+            //B wins = outward
+            move_vector_bigger[0]-=Math.cos(a_angle);
+            move_vector_bigger[1]-=Math.sin(a_angle);
+            move_vector_smaller[0]-=Math.cos(b_angle);
+            move_vector_smaller[1]-=Math.sin(b_angle);
+        }else if(this.has_type("C") && !this.has_type("A")){
+            //C smaller runs from bigger that towards put
+
+            move_vector_bigger[0]+=Math.cos(a_angle);
+            move_vector_bigger[1]+=Math.sin(a_angle);
+            move_vector_smaller[0]-=Math.cos(b_angle);
+            move_vector_smaller[1]-=Math.sin(b_angle);
+        }else if(this.has_type("A")){
+            //no winner: draw = aa,bb,cc
+            //bigger runs away from smaller that stays put
+            
+            move_vector_bigger[0]-=Math.cos(a_angle);
+            move_vector_bigger[1]-=Math.sin(a_angle);
+        }else if(this.has_type("B")){   
+
+            move_vector_smaller[0]-=Math.cos(b_angle);
+            move_vector_smaller[1]-=Math.sin(b_angle);
+        }else if(this.has_type("C")){
+
+            move_vector_bigger[0]+=Math.cos(a_angle);
+            move_vector_bigger[1]+=Math.sin(a_angle);
+        }
+        bigger_node.connection_move(move_vector_bigger)
+        smaller_node.connection_move(move_vector_smaller)
+
+    }
+    is_too_long(){
+        return this.max_distance<this.get_current_length()?true:false;
+    }
+    get_current_length(){
+
+        const dx = (this.t2.x-this.t1.x);
+        const dy = (this.t2.y-this.t1.y);
+        const rt = this.t2.r+this.t1.r;
+
+        return Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2) - rt);    
+    }
+    color_string(){
+        const alpha = MapRange(this.border_width,[0,this.get_smallest_things_r()],0,255);
+        return `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.border_width})`
+    }
+    update(){
+       
+        this.impluse();
+
+        this.border_width = this.border_width+0.1;
+        //this.border_width = Math.min(20,this.border_width);
+        this.color= this.color.map((color,i)=>this.color_dir[i]?color+=this.color_vals[i]:color-=this.color_vals[i])
+        this.color.forEach((c,i)=>c>255||c<0?this.color_dir[i]=!this.color_dir[i]:null)
+        this.color = this.color.map(c=>c>255?255:c<0?0:c);
+        this.border_width=Math.min(this.get_smallest_things_r(),this.border_width)
+
+        if(this.is_too_long()){
+            this.remove();
+        }
+
+    }
+    has_type(type){
+        if(this.t1.type==type||this.t2.type==type) return true
+        else return false
+    }
+    remove(){
+        this._can_be_removed=true;
+    }
+    remove_clean_up(){
+        this.t1.connection_break(this);
+        this.t2.connection_break(this);
+    }
+}
+
+const MapRange=(number,numrange,maprange)=>{
+
+    return (number - numrange[0]) * (maprange[1] - maprange[0]) / (numrange[1] - numrange[0])+maprange[0]
+}
+
+const divide=(scalar,arr)=>arr.map(x=>x/scalar||0);
+
+const get_magnitude=(vec)=>Math.sqrt(vec.reduce((acc,item)=>acc+Math.pow(item,2),0))
+
+const inverse=(vec)=>(vec.map(x=>-x))
+
+const normalize=(thing)=>divide(get_magnitude(thing),thing);
+
+ 
+
+const board = new Board(canvas,ctx);
+
+ctx.fillStyle= "#FFFFFF"
+
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+ 
+
+window.setInterval(()=>board.render(),110)
+
+
+const button = document.createElement('button');
+button.textContent="click me";
+let blank_state="black";
+button.addEventListener('click',()=>{
+    blank_state=blank_state=="white"?"black":"white";
+    board.set_blank_color(blank_state)
+    console.error(blank_state,board.blank_color)
+})
+
+
+
+document.body.appendChild(button);
+</script>
+
+
+
+</html>
+
+ 

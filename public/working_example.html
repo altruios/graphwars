@@ -1,0 +1,1138 @@
+<html>
+    <body>
+        <div>
+        <canvas height="500" width="900" id="canvas" ></canvas>
+            <canvas height="500" width="500" id="canvas2"></canvas>
+        </div>
+        <div id="controls"></div>
+		<div id="display"></div>
+
+    </body>
+<script> 
+
+let ID_NUM = 0n;
+const ID = () => {
+	ID_NUM += 1n;
+	return ID_NUM
+}
+const canvas = document.getElementById('canvas');
+const canvas2 = document.getElementById('canvas2');
+const DISPLAY = document.getElementById("display");
+const ctx = canvas.getContext("2d");
+const controls = document.getElementById("controls");
+const count = 145;
+let GAME_COUNT = 0;
+let iter_count = 0;
+
+function random_int(min, max) {
+	return Math.floor(Math.random() * (max - min) + min);
+}
+class Board {
+	constructor(canvas, canvas2, count) {
+		this.cell_count = count;
+		this.height = canvas.height;
+		this.width = canvas.width;
+        this.test1=null;
+        this.s_width=canvas2.width;
+        this.s_height=canvas2.height;
+		this.canvas = canvas;
+        this.s_canvas=canvas2;
+		this.ctx = canvas.getContext("2d");
+        this.s_ctx=canvas2.getContext("2d");
+		this.collections = [];
+		this.best_fitness = 0;
+		this._draw_text_flag = true;
+		this._draw_vision_flag = false;
+		this.max_render_count = 350;
+		this.bg_color = "#000000";
+		this.catch_range = 100;
+		this.max_range = 200;
+		this.render_count = 0;
+		this.game_count = 0;
+		this.brain_template = null;
+		this.init_collection();
+		this.render_speed = 60;
+	}
+	init_collection() {
+		for (let i = 0; i < this.cell_count; i++) {
+			this.add_node()
+		}
+	}
+    calc_input_row_count(){
+        return this.cell_count*7+7
+    }
+	set_catch(num) {
+		this.catch_range = num;
+	}
+	set_max_connection_length(num) {
+		this.max_range = num;
+	}
+	draw(living_nodes) {
+		const triangles = this.get_all_triangles(living_nodes);
+		this.reward_triangles(triangles)
+		triangles.forEach(trig => {
+			const grd = this.ctx.createLinearGradient(trig[0].x, trig[0].y, (trig[1].x + trig[2].x) / 2, (trig[1].y + trig[2].y) / 2)
+			grd.addColorStop(0, trig[0].color);
+			grd.addColorStop(.5, trig[1].color);
+			grd.addColorStop(1, trig[2].color);
+			this.ctx.fillStyle = grd;
+			this.ctx.beginPath();
+			this.ctx.moveTo(trig[0].x, trig[0].y);
+			this.ctx.lineTo(trig[1].x, trig[1].y);
+			this.ctx.lineTo(trig[2].x, trig[2].y);
+			this.ctx.fill();
+		})
+		living_nodes.forEach(node => node.draw_connections(this.ctx));
+		living_nodes.forEach(node => node.draw_self(this.ctx));
+        this.draw_fittest_nodes_info();
+        this.highlight_fittest_node();
+		this.display();
+	}
+    highlight_fittest_node(){
+        const color = this.bg_color=="#000000"?`rgba(255,255,255,0.3)`:`rgba(0,0,0,0.3)`
+        this.ctx.fillStyle=color;
+        const fittest_node=this.get_fitest_node();
+        this.ctx.beginPath();
+        this.ctx.arc(fittest_node.x,fittest_node.y,fittest_node.r+20,0,Math.PI*2);
+        this.ctx.fill()
+    }
+    draw_fittest_nodes_info(){
+        const fitest_node = this.get_fitest_node();
+        const fittest_node_brain_array = fitest_node.Brain.matrix;
+        const start_bucket = [];
+        const h_of_a = fitest_node.Brain.height-1;
+        for(let i=0;i<h_of_a+1;i++){
+            start_bucket.push([]);
+        }
+        const fittest_brain_matrix = fittest_node_brain_array.reduce((matrix,cell,ci,arr)=>{
+            matrix[cell.height].push(cell)
+            return matrix
+        },start_bucket);
+
+
+
+        
+        this.s_ctx.fillStyle="#000000";
+        const row_count = fittest_brain_matrix.length;
+        const col_counts = fittest_brain_matrix.map(row=>row.length);
+        const longest_col_len = fittest_brain_matrix.map(row=>row.length).sort((a,b)=>b-a)[0];
+        const scale_y = this.s_canvas.height / row_count;
+        const scale_r = 30;
+        for(let y=0;y<row_count;y++){
+
+            for(let x=0;x<col_counts[y];x++){
+                const scale_x = this.s_canvas.width / col_counts[y];
+
+                const cell = fittest_brain_matrix[y][x];
+                const draw_x = scale_x*x+scale_x/2;
+                const draw_y = scale_y*y+scale_y/2;
+                const draw_r = Math.abs(cell.activation_value*scale_r);
+                const is_pos = cell.activation_value>0
+                const border_color = is_pos?"#0000ff":"#ff0000"
+                const border_width = cell.bias*scale_r*2;
+                const color_val=Math.floor(MapRange(cell.activation_value,[-1,1],[100,255]));
+                
+                const draw_c = `rgb(${color_val},${is_pos?color_val:40},${is_pos?color_val:40})`
+
+
+                cell.connections_backwards.forEach((other_cell,bi)=>{
+                    const c_v_w=MapRange(cell.connections_backwards[bi].activation_value,[-1,1],[0,255]);
+                    const is_neg = cell.connections_backwards[bi].activation_value<0?true:false;
+                    const wl =  MapRange(c_v_w,[0,255],[1,5])
+                    const draw_w = `rgb(${is_neg?c_v_w:0},${is_neg?0:c_v_w},${0})`
+                    this.s_ctx.strokeStyle=draw_w;
+                    this.s_ctx.lineWidth=wl;
+                    this.s_ctx.beginPath();
+                    this.s_ctx.moveTo(draw_x,draw_y);
+                    const last_scaled_x = this.s_canvas.width / col_counts[y-1]
+                    this.s_ctx.lineTo(last_scaled_x*(bi)+last_scaled_x/2,scale_y*(y-1)+scale_y/2);
+                    this.s_ctx.stroke();
+
+                })
+
+
+                this.s_ctx.strokeStyle=border_color;
+                this.s_ctx.lineWidth=border_width;
+                this.s_ctx.fillStyle=draw_c;
+                this.s_ctx.beginPath();
+                this.s_ctx.arc(draw_x,draw_y,draw_r,0,2*Math.PI)
+                this.s_ctx.fill();
+//                this.s_ctx.stroke();
+
+            }
+        }
+        this.s_ctx.fill();
+        this.s_ctx.font='36pt Times';
+
+        this.s_ctx.fillText(`fit:${fitest_node.fitness}`,this.s_canvas.width/2 - 200,50);
+
+        this.s_ctx.fillText(`x:${(fitest_node.x).toFixed(0)},y:${(fitest_node.y.toFixed(0))}`,this.s_canvas.width/2,50);
+
+
+
+
+
+    }
+	display() {
+		const fitest = this.get_fitest_node();
+		const outputs = ["x1", 
+        "x2", 
+        "y1", 
+        "y2", 
+        "mutate", 
+        "will_mutate_weights", 
+        "weights_mutation", 
+        "will_mutate_bias", 
+        "bias_mutation", 
+        "decide to learn small", 
+        "decide to learn big"]
+
+        
+        
+        
+        const inputs_host = ["last x1",
+        "last x2",
+        "last y1",
+        "last y2",
+        "host radius",
+		"host type",
+        "host fitness",
+		"host connection count",
+		"host's scream"    
+    ]
+	const other_cell_inputs = [
+		"distance from self",
+		"angle towards object",
+		"radius",
+		"fitness",
+		"type",
+		"connection count",
+		"is_active",
+		"scream"
+
+	]
+
+
+
+
+        DISPLAY.innerText = `render_count:${this.render_count}
+
+        game_count ${this.game_count}
+
+        cell_count:${this.collections.length}, ${this.get_living_nodes().length}
+
+ 
+
+        fitest cell: ${fitest.id}, (${fitest.x.toFixed(2)},${fitest.y.toFixed(2)}) ${fitest.last_performance.toFixed(2)}
+
+ 
+
+        f-current: ${this.get_fitest_node().fitness}
+        x:${(fitest.Brain.last_move_vec[0]/fitest.Brain.last_move_vec[1]).toFixed(3)},y:${(fitest.Brain.last_move_vec[2]/fitest.Brain.last_move_vec[3]).toFixed(3)}
+
+ 
+
+        f-record:${this.best_fitness}
+
+ 
+
+        brain info:
+
+        mutations taken for whole brain: ${fitest.Brain.mutation_counter}
+
+ 
+
+        ${fitest.Brain.get_output().map((x,i)=>`output${i}: ${x.toFixed(2)} ${outputs[i]}\n`)}
+
+		deciding to learn: ${fitest.Brain.get_output().filter((x,i)=>i==9||i==10).reduce((acc,item)=>acc+item),true}
+
+        ${fitest.Brain.get_input_cells().filter((x,i)=>i<9).map((x,i)=>`input${i}:${x.activation_value.toFixed(3)} ${inputs_host[i]} \n`)}
+
+        ${fitest.Brain.get_input_cells().filter((x,i)=>i>=9).map((x,i)=>`${i%other_cell_inputs.length==0?`\ncell ${Math.floor(i/other_cell_inputs.length)} \n`:""}input${i}:${x.activation_value.toFixed(3)} ${other_cell_inputs[i%other_cell_inputs.length]} \n`)}
+
+
+ 
+
+        `
+		const old_display = document.getElementById('brain_display_div')
+		old_display?.remove();
+		const new_display = fitest.Brain.display();
+		document.body.appendChild(new_display);
+	}
+	step(living_nodes) {
+		this.update_collections(living_nodes);
+        this.test1 = living_nodes.map(node=>{return {x:node.x,y:node.y,r:node.r,connections:node.connections.map(cn=>{return{x:cn.x,y:cn.y,r:cn.r}})}})
+
+	}
+	update_collections(livingNodes) {
+
+		livingNodes.forEach(node => node.update(livingNodes, this.width, this.height, this.catch_range, this.max_range))
+		this.handle_eat(livingNodes);
+		livingNodes.forEach(node => !node.is_activated ? node.deactivate() : null)
+	}
+	reward_triangles(triangles) {
+	
+		triangles.forEach(triangle => {
+			const area = triangle_area(triangle);
+			const total_fitness= triangle[0].fitness+triangle[1].fitness+triangle[2].fitness
+			const best_trig = triangle.every((x,i,arr)=>x.type==arr[(i+1)%arr.length].type)
+			const second_best_trig = triangle.some((x,i,arr)=>x.type==arr[i%arr.length].type)
+			const reward_type = best_trig==true?3000:second_best_trig==true?4000:5000
+			const reward =Math.floor(Math.sqrt((area+total_fitness)/ reward_type))
+			triangle.forEach(node => node.update_fitness(reward))
+		
+		}) 
+	}
+	handle_eat(living_nodes) {
+		living_nodes.forEach(node => {
+			node.connections.forEach(other_node => {
+				const eater = node.r >= other_node.r ? node : other_node;
+				const eatee = node.r < other_node.r ? node : other_node;
+				const distance = eater.get_distance_between_edges(eatee);
+				if (distance <= 0 && this.get_living_nodes().length > 0) {
+					if (eater.type == eatee.type) {
+						eater.change_type();
+						eater.update_fitness(-Math.floor(eatee.fitness));
+						eatee.set_is_activated(false);
+					} else {
+						eatee.change_type();
+						eatee.impulse_away_from(eater);
+                        eatee.fitness=1;
+						eater.fitness-=1;
+					}
+				}
+			})
+		})
+	}
+	get_all_triangles(living_nodes) {
+		const triangle = (n1, n2, n3) => ([n1, n2, n3])
+		const contains_triangle = (arr, trig) => arr.find(x => x.includes(trig[0]) && x.includes(trig[1]) && x.includes(trig[2]))
+		const triangles = [];
+		const possible_triangle_nodes = [];
+		const visted_nodes = [];
+		living_nodes.forEach(node_l1 => {
+			node_l1.connections.forEach(node_l2 => {
+				node_l2.connections.forEach(node_l3 => {
+					const is_triangle = node_l3.connections.includes(node_l1);
+					if (is_triangle && (!visted_nodes.includes(node_l1) || !visted_nodes.includes(node_l2))) {
+						const t = triangle(node_l1, node_l2, node_l3);
+						if (!contains_triangle(triangles, t)) {
+							triangles.push(t);
+						//	visted_nodes.push(t[0]);
+						//	visted_nodes.push(t[1]);
+						//	visted_nodes.push(t[2]);
+						}
+					}
+				})
+			})
+		})
+		return triangles;
+	}
+	add_node() {
+		const randx = Math.floor(Math.random() * this.canvas.width);
+		const randy = Math.floor(Math.random() * this.canvas.height);
+		const randt = Math.random() > 0.3 ? "A" : Math.random() > 0.3 ? "B" : "C";
+		this.collections.push(new Node(randx, randy, randt, this.brain_template, this));
+	}
+	blank() {
+		this.ctx.fillStyle = this.bg_color;
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+        
+		this.s_ctx.fillStyle = this.blank_coloring();
+        this.blank_coloring()//and reset
+        this.s_ctx.fillRect(0,0,this.s_width,this.s_height);
+        this.s_ctx.fill();
+	}
+	blank_coloring() {
+		this.bg_color = this.bg_color == "#000000" ? "#FFFFFF" : "#000000"
+        return this.bg_color
+	}
+	get_fitest_val() {
+		return Math.max.apply(Math, this.get_living_nodes().map((o) => o.fitness))
+	}
+	get_fitest_node() {
+		return this.get_living_nodes().find(x => x.fitness >= this.get_fitest_val())
+	}
+    get_living_nodes(){
+        return this.collections.filter(x=>x.is_activated)
+    }
+	render() {
+		this.blank()
+        const living_nodes = this.get_living_nodes()
+		this.draw(living_nodes);
+		this.step(living_nodes);
+		this.render_count++;
+	}
+	run(game_time) {
+		const that = this;
+		const engine = window.setInterval(() => {
+			if (that.render_count > that.max_render_count) that.evaluate()
+			else that.render();
+		}, this.render_speed)
+	}
+	clear_all_nodes() {
+		this.collections = [];
+	}
+	new_game(wining_node) {
+		this.render_count = 0;
+		this.game_count++;
+		const fitness_win = wining_node.fitness > this.best_fitness;
+		const color = fitness_win ? 'background: #272; color: #bada55' : 'background: #722; color: #bada55'
+		console.log(`%c new game: ${wining_node.fitness} ${this.best_fitness} ${fitness_win?"updating brain":"reusing brain"}`, color)
+		this.best_fitness = this.best_fitness > wining_node.fitness ? this.best_fitness : wining_node.fitness;
+		this.brain_template = fitness_win ? wining_node.Brain:this.brain_template;
+		this.reactivate_nodes();
+        this.scatter_nodes();
+        this.mutate_nodes(wining_node.fitness,this.best_fitness);
+        this.reset_nodes_fitness();
+	}
+    reset_nodes_fitness(){
+        this.collections.forEach(node=>node.fitness=0)
+    }
+    reactivate_nodes(){
+        this.collections.forEach(node=>node.set_is_activated(true));
+    }
+    scatter_nodes(){
+        this.collections.forEach(node=>node.scatter())
+    }
+    mutate_nodes(winner,champion){
+        console.log(winner,champion,"are winner and champion")
+        this.collections.forEach(node=>node.mutate_next(winner,champion));
+
+
+    }
+
+	evaluate() {
+		const fitest = this.get_fitest_node();
+		if (!fitest) {
+			console.error("no fitest - means no one left alive?");
+		} else {
+			console.log("evaluated", fitest.fitness, "is max fitness,");
+			this.new_game(fitest);
+		}
+	}
+	debug(sw) {
+        if(sw==0){
+            this._draw_vision_flag= !this._draw_vision_flag;
+            this.collections.forEach(n => n.set_vision_text(this._draw_vision_flag));
+
+        }
+        else{
+            this._draw_text_flag = !this._draw_text_flag;
+	    	this.collections.forEach(n => n.set_draw_text(this._draw_text_flag));
+	
+        }
+		}
+	test(node) {
+		console.log(node.Brain.predict(this.collections));
+	}
+}
+class Node {
+	constructor(x, y, type, brain, ref) {
+		if (x == NaN) {
+			console.log("x is wrong");
+		}
+		this.x = x;
+		this.y = y;
+		this.ref = ref;
+		this.id = `id-${x}-${y}`;
+		this.r = Math.floor(Math.max(5, Math.random() * 20));
+		this.type = type;
+		this.connections = [];
+		this._deletable = false;
+		this._draw_text_flag = ref._draw_text_flag;
+        this._draw_vision_flag = ref._draw_vision_flag;
+        this.is_activated=true;
+		this.Brain = brain ? brain.next_generation_mutate() : new Brain(this, null);
+		this.Brain.connect_host(this);
+		this.scale = 1;
+		this.fitness = 1;
+        this.last_performance = 0;
+	}
+    scatter(){
+        this.connections.forEach(other_node=>this.disconnect(other_node))
+        const randx= this.ref.canvas.width*Math.random()
+        const randy= this.ref.canvas.height*Math.random()
+        this.x=randx;
+        this.y=randy;
+    }
+    mutate_next(winner,champion){
+        const performance = (this.fitness/champion); //how well did it do over all;
+        this.last_performance=performance;
+
+        const mutation_guard = (this.fitness/winner); //how well did it do in the game;
+        this.Brain.mutate_next(performance,mutation_guard);
+        
+    
+    }
+    set_brain(brain){
+        this.Brain=brain?brain.next_generation_mutate() : new Brain(this,null)
+    }
+	update_fitness(amount) {
+		this.fitness += amount;
+		this.fitness = Math.max(this.fitness, 0)
+	}
+	get_distance_from_center(other_node) {
+		const dx = (other_node.x - this.x);
+		const dy = (other_node.y - this.y);
+		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+		return df
+	}
+	change_type() {
+		this.type = this.type == "A" ? "B" : this.type == "B" ? "C" : "A";
+	}
+	clear_adjacent(node) {
+		this.connections = this.connections.filter(x => x != node);
+	}
+	get_distance_between_edges(other_node) {
+		const dx = (other_node.x - this.x);
+		const dy = (other_node.y - this.y);
+		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+		const rt = this.r + other_node.r;
+		return df - rt;
+	}
+	impulse_away_from(other_node) {
+		const move_vector = [0, 0];
+		const angle = this.get_angle(other_node);
+		this.x -= Math.cos(angle) * other_node.r;
+		this.y -= Math.sin(angle) * other_node.r;
+	}
+	move(all_bubbles) {
+		const result = this.Brain.run(all_bubbles);
+		this.x += result[0] / result[1] || 0;
+		this.y += result[2] / result[3] || 0;
+		if (!this.y || !this.x) {
+			console.log(result, "is result from failed brain");
+			console.log(this.x, this.y, "are not numbers?", " brain below");
+			console.log(this.Brain);
+			console.error("brain malfunction");
+		}
+	}
+	update_r() {
+		const fitness_range = MapRange(this.fitness,[1,30000],[1,10])
+		const update_r = this.connections.length
+		this.r = fitness_range * (update_r);
+        this.r=Math.max(5,this.r);
+	}
+	update_color() {
+		this.color = this.connections.length == 0 ? "#aaaaaa" : this.type == "A" ? `#ff0000` : this.type == "B" ? "#00ff00" : "#0000ff"
+	}
+	boundries(width, height) {
+		this.x = Math.min(Math.max(this.x, 0), width);
+		this.y = Math.min(Math.max(this.y, 0), height);
+	}
+	connect(other_node) {
+		if (!this.connections.includes(other_node)) {
+			this.connections.push(other_node);
+		}
+		if (!other_node.connections.includes(this)) {
+			other_node.connections.push(this);
+		}
+	}
+	make_connections(all_nodes, node_catch_range) {
+		const not_connected_yet = all_nodes.filter(x => this.connections.every(y => y.id != x.id) && x.id != this.id);
+		const close_enough = not_connected_yet.filter(other_node => this.get_distance_from_center(other_node) < node_catch_range ? true : false)
+		close_enough.forEach(n => this.connect(n));
+	}
+	break_connections(node_max_range) {
+		this.connections.forEach(other_node => {
+			if (this.get_distance_from_center(other_node) > node_max_range) {
+				this.disconnect(other_node);
+			}
+		})
+	}
+	disconnect(other_node) {
+		other_node.connections = other_node.connections.filter(x => x != this);
+		this.connections = this.connections.filter(x => x != other_node);
+	}
+	update(all_nodes, width, height, cr, mr) {
+            this.make_connections(all_nodes, cr);
+            this.move(all_nodes);
+            this.break_connections(mr);
+            this.update_r();
+            this.update_color();
+            this.boundries(width, height);
+        
+    }
+    deactivate(){
+        this.connections.forEach(other_node=>this.disconnect(other_node));
+    }
+    set_is_activated(bool){
+        this.is_activated=bool;
+    }
+    draw(ctx) {
+		this.draw_self(ctx);
+		this.draw_connections(ctx);
+	}
+	set_draw_text(flag) {
+		this._draw_text_flag = flag;
+	}
+    set_vision_text(flag){
+
+		this._draw_text_flag = flag;
+    }
+	draw_self(ctx) {
+		if (this.ref._draw_vision_flag == true && this.ref.get_fitest_node().id==this.id) {
+			const ctx = this.ref.ctx;
+
+			const visable_nodes = this.ref.get_living_nodes().sort((a,b)=>this.get_distance_from_center(a)>this.get_distance_from_center(b)?1:-1)
+			const closest_vis=visable_nodes.filter((x,i)=>i<7);
+
+			closest_vis.forEach((node,i)=>{
+				ctx.strokeStyle = `rgba(240,150,${100+i*8},.6)`;
+				ctx.lineWidth=20;
+				ctx.beginPath();
+				ctx.moveTo(this.x,this.y);
+				ctx.lineTo(node.x,node.y);
+				ctx.stroke();
+
+			})
+		}
+		ctx.fillStyle = this.color;
+		ctx.beginPath();
+		ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+		ctx.fill();
+		ctx.lineWidth = 2;
+		ctx.stroke();
+		if (this._draw_text_flag) {
+			this.draw_text(ctx);
+		}
+	}
+	draw_text(ctx) {
+		ctx.fillStyle = "#00ff00"
+		ctx.font = '20px serif';
+		ctx.fillText(" "+this.id, this.x, this.y + 20);
+		ctx.fillStyle = "#ff00ff"
+		ctx.fillText(this.fitness, this.x, this.y - 5);
+	}
+	draw_connections(ctx) {
+		ctx.fillStyle = this.color;
+		this.connections.forEach(other_node => {
+			ctx.strokeStyle = blend_color(this, other_node);
+			ctx.lineWidth = other_node.r > this.r ? this.r / 2 : other_node.r / 2;
+			ctx.beginPath();
+			ctx.moveTo(this.x, this.y);
+			ctx.lineTo(other_node.x, other_node.y);
+			ctx.stroke();
+		})
+	}
+	isLargest() {
+		const is_largest = this.connections.every(x => x.r < this.r)
+		return is_largest ? 255 : 100;
+	}
+	isSmallest() {
+		const is_smallest = this.connections.every(x => x.r > this.r)
+		return is_smallest ? 255 : 100;
+	}
+	has_friends() {
+		const has_friends = this.connections.length > 1;
+		return has_friends ? 255 : 100;
+	}
+	get_angle(other_node) {
+		const dx = other_node.x - this.x;
+		const dy = other_node.y - this.y;
+		const angle = Math.atan(dy, dx);
+		return angle;
+	}
+	scream(){
+		return this.Brain.get_scream();
+	}
+}
+class Cell {
+	constructor(height, brain) {
+		this.connections_forward = [];
+		this.connections_backwards = [];
+		this.weights = [];
+		this.activation_value = Math.cos(Math.random() - 1 * 2);
+		this.bias = Math.sin(Math.random() - 1 * 2);
+		this.height = null;
+		this.row_index = null;
+		this.mutation = 0.1;
+		this.id = ID();
+		this.is_answer_row = false;
+		this.Brain = brain;
+		this.mutation_counter = 0;
+		this.height = height;
+		this.is_answer_row = this.height == brain.height-1;
+	}
+	get_weights() {
+		return this.weights;
+	}
+	setActivation_Value() {
+		const old_activation = this.activation_value;
+		const new_activation = this.get_next_activation_value();
+		this.activation_value = new_activation;
+	}
+	get_next_activation_value() {
+		const ax = this.connections_backwards.reduce((acc, x, i) => {
+			const v = this.weights[i] * x.activation_value;
+			acc += v;
+			return acc
+		}, 0)
+		const new_activation = Math.tanh(ax + this.bias);
+		return new_activation
+	}
+	propagate_change_forward() {
+		this.setActivation_Value();
+		for (let i = 0; i < this.connections_forward.length; i++) {
+			this.connections_forward[i].propagate_change_forward()
+		}
+	}
+	setMutation(value) {
+		this.mutation = value;
+		this.mutation = Math.min(1, (Math.max(-1, this.mutation)))
+	}
+	mutateWeights(chance) {
+		this.weights = this.weights.map(x => this.mutation_rate_modification(x, chance));
+	}
+	mutateBias(chance) {
+		this.bias = this.mutation_rate_modification(this.bias, chance);
+	}
+	_copy(cell) {
+		if (cell == undefined) {
+			console.log("nothing to copy");
+			return;
+		}
+		//map perfect wires
+		this.mutation_counter = 0;
+		//map imperfect numbers
+		this.weights = cell.weights.map(x => this.mutation_rate_modification(x, x.mutation))
+		this.activation_value = this.mutation_rate_modification(cell.activation_value, x.mutation);
+		this.bias = this.mutation_rate_modification(cell.bias, x.mutation);
+		this.mutation = this.mutation_rate_modification(cell.mutation, x.mutation)
+	}
+	mutate(chance) {
+		this.mutateBias(chance);
+		this.mutateWeights(chance);
+		this.mutation_counter++;
+	}
+	mutation_rate_modification(value, chance) {
+		if (Math.random < chance) {
+			return value + Math.sin(this.mutation_rate - 1 * 2);
+		}
+		return value;
+	}
+	mutation_advance() {
+		this.mutation = Math.min(1, (Math.max(-1, this.mutation + this.mutation / 100)))
+	}
+	mutation_reduce() {
+		this.mutation = Math.min(1, (Math.max(-1, this.mutation - this.mutation / 100)))
+	}
+	clear_all_connections() {
+		this.connections_backwards = [];
+		this.connections_forward = [];
+	}
+	init_weights(other_cells) {
+		other_cells.forEach((other_cell, i) => this.weights[i] = (Math.sin(other_cell.activation_value * this.activation_value)));
+	};
+	connect(other_cell) {
+		this.connections_forward.push(other_cell)
+		other_cell.connections_backwards.push(this)
+	}
+    mutate_next(p,g){
+        this.mutate_bias(p,g)
+        this.mutate_weights(p,g);
+        Math.sin(this.mutation_rate)>0?this.mutation_advance():this.mutation_reduce();
+        this.mutation_counter++;
+    }
+    mutate_bias(p,g){
+        if(g<Math.random()){
+            this.bias+=this._mutate(p)
+        }
+    }
+
+    mutate_weights(p,g){
+        this.weights.forEach(weight=>{
+            if(g<Math.random()){
+                weight+=this._mutate(p)
+            }
+        })
+    }
+    _mutate(p){
+        return this.mutation*p
+    }
+
+}
+class Brain {
+	constructor(host, template) {
+		this.generation_number = 0;
+		this.matrix = []
+		this.mutation_counter = 0;
+		this.host = host;
+        this.height=7;
+		this.last_move_vec = [0, 0, 0, 0];
+		this.last_fitness = this.host.fitness;
+		this.init_matrix(template);
+		this.connect_cells();
+		this.init_weights();
+	}
+	get_scream(){
+		const output=this.get_output();
+		return output[output.lenght-1]
+	}
+	init_matrix(template) {
+		this.matrix = [];
+		const height = this.height;
+		const max_breadth = 13;
+		const min_breadth = 13;
+		const answer_layer = 12; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
+		const input_layer = 7*8+9; // 7 closest*8 +9 for selfstats;
+
+		for (let i = 0; i < height; i++) {
+			const random_breadth = !i == 0 ? i == height - 1 ? answer_layer : Math.floor(Math.max(min_breadth, Math.random() * max_breadth)) : input_layer;
+			const chosen_breadth = template ? template.matrix.filter(x => x.height == i).length : random_breadth;
+			for (let j = 0; j < chosen_breadth; j++) {
+				const cell = new Cell(i, this);
+				this.matrix.push(cell);
+			}
+		}
+		template ? this.copy_from(template) : null;
+	}
+	copy_from(template) {
+		this.matrix.forEach((cell, i, arr) => {
+			cell._copy(template.find_equivelent_cell(cell, arr.filter(x => x.height == cell.height).indexOf(cell)))
+		});
+	}
+	connect_cells() {
+		this.matrix.forEach((cell, i, arr) => arr.forEach((mcell, mi, marr) => cell.height + 1 == mcell.height ? cell.connect(mcell) : null))
+	}
+	init_weights() {
+		this.matrix.forEach(cell => cell.connections_backwards.forEach(cb => cell.weights.push(Math.random() > 0.5 ? Math.random() * (-1) : Math.random())))
+	} 
+    mutate_next(p,g){
+        this.matrix.forEach(cell=>cell.mutate_next(p,g))
+    }
+
+
+
+	display() {
+		//return a text pyramid - adjacency list?
+		const div = document.createElement('div');
+		div.id = "brain_display_div"
+		const cell_node = (cell) => {
+			const cdiv = document.createElement("div");
+			cdiv.style.display = "flex";
+			cdiv.style.flexFlow = "column nowrap"
+            cdiv.style.border="outset 2vh green"
+			const titleDiv = document.createElement("div");
+			titleDiv.innerText = `id:${cell.id} -height:${cell.height} - a:${cell.activation_value.toFixed(4)} - gen${this.generation_number} -mutationcount:${cell.mutation_counter}`;
+			titleDiv.style.border = "solid";
+			titleDiv.style.alignSelf = "center";
+			titleDiv.style.backgroundColor = cell.activation_value > 0 ? "#aaffaa" : "#ffaaaa";
+			const cdiv_w_holder = document.createElement("div");
+			cdiv_w_holder.style.display = "flex";
+			cdiv_w_holder.style.flexFlow = "row wrap"
+			cell.weights.forEach((w, i) => {
+				const wdiv = document.createElement('div');
+				wdiv.innerText = `#${i}--:  ${w.toFixed(4)}`
+				wdiv.style.display = "flex";
+				wdiv.style.border = "outset";
+				wdiv.style.backgroundColor = w > 0 ? "#aaffaa" : "#ffaaaa"
+				cdiv_w_holder.appendChild(wdiv);
+			})
+			cdiv.appendChild(titleDiv);
+			cdiv.appendChild(cdiv_w_holder);
+			return (cdiv);
+		}
+        const height = this.height;
+        const height_rows = Array(height).fill((i)=>this.matrix.filter(c=>c.height==i)).map((x,i)=>x(i))
+        height_rows.forEach(row=>{
+            const row_container = document.createElement('div');
+            row_container.style.display= "flex";
+            row_container.style.flexFlow="row nowrap"
+            row_container.style.border="solid blue"
+            row.forEach(cell=>{
+                const cell_div = cell_node(cell)
+                row_container.appendChild(cell_div);
+            })
+            div.appendChild(row_container)
+        })
+		return div
+	}
+	get_output() {
+		return this.get_output_cells().map(x => x.activation_value);
+	}
+	get_hidden_layers() {
+		return this.matrix.filter(x => x.height != 0 && !x.answer_layer)
+	}
+	get_output_cells() {
+		return this.matrix.filter(x => x.is_answer_row);
+	}
+	get_input_cells() {
+		return this.matrix.filter(x => x.height == 0);
+	}
+	copy() {
+		const copy = new Brain(this.host, this);
+		copy.generation_number = this.host.ref.game_count;
+		return copy
+	}
+	get_last_fitness() {
+		return this.last_fitness;
+	}
+	set_last_fitness() {
+		this.last_fitness = this.host.fitness;
+	}
+	mutate(activation) {
+		// console.log("mutating brain");
+		this.matrix.forEach(cell => cell.mutate(activation))
+		this.mutation_counter++;
+	}
+	connect_host(host) {
+		this.host = host;
+	}
+	remove_cell(cell_index) {
+		const cell = this.matrix.find(x => x.height == cell_index);
+		const index = this.matrix.indexOf(cell);
+		this.matrix.forEach(c => c.connected_to(cell) ? c.disconnect(cell) : null)
+	}
+	find_equivelent_cell(cell, xpos) {
+		const row = this.matrix.filter(x => x.height == cell.height);
+		const get_row = (arr, cell) => {
+			return arr.indexOf(cell)
+		}
+		return this.matrix.find((c, i, arr) => c.height == cell.height && (get_row(arr, c) == Math.min(xpos, row.height))) || cell;
+	}
+	run(other_nodes) {
+		const data = this.get_data(other_nodes);
+		const cleaned_data = this.normalize(data);
+		const last_prediction = this.get_output();
+		const prediction = this.predict(cleaned_data, last_prediction, this.host.fitness);
+		this.decide_to_learn(prediction[9], prediction[10]) ? this.execute(prediction) : null;
+		this.last_move_vec = this.get_move_vector(prediction);
+		this.set_last_fitness()
+		return this.last_move_vec
+	}
+	get_move_vector(prediction) {
+		return [prediction[0], prediction[1], prediction[2], prediction[3]]
+	}
+	decide_to_learn(a, b) {
+		return a > b
+	}
+	normalize(data) {
+		return data.map(x => Math.tanh(x));
+	}
+	get_data(other_nodes) {
+		//okay ==so data is going to come in an array
+		const data = [];
+
+		data.push(this.last_move_vec[0])
+		data.push(this.last_move_vec[1])
+		data.push(this.last_move_vec[2])
+		data.push(this.last_move_vec[3])
+
+        data.push(this.host.r / 100 - 1 * 2);
+		data.push(Trool(this.host.type))// type troolian
+
+		data.push(Map_R_Pos(this.host.fitness,[1,6000]))
+		data.push(Map_R_Real(this.host.connections.length,[0,50]))
+		data.push(this.host.scream());
+        const add_all_other_nodes_data=(data,c)=>{
+			let ref = this.host.ref.get_living_nodes().sort((a,b)=>this.host.get_distance_from_center(a)>this.host.get_distance_from_center(b)?1:-1)
+
+            ref=ref.filter((x,i)=>i<7);
+            if(ref!=undefined&&ref!=null&&Array.isArray(ref)&&ref.length>0){
+            ref.forEach(node=>{
+                data.push(Map_R_Real(this.host.get_distance_between_edges(node),[0,500]));
+                data.push(this.host.get_angle(node));
+				data.push(Map_R_Real(node.r,[1,50]));
+				data.push(Trool(node.type))
+                data.push(Map_R_Real(node.fitness,[0,10000]))
+                data.push(Map_R_Real(node.connections.length,[0,30]));
+                data.push((node.is_activated*2-1));
+                data.push(node.scream())
+            })
+            }else{
+                for(let i=0;i<this.host.ref.cell_count;i++){
+                    for(let j=0;j<8;j++){
+                        data.push(0);
+                    }
+                }
+            }
+        }
+        add_all_other_nodes_data(data,this.host.ref.cell_count);
+      	const clean_data = data.map(x => isNaN(x) ? 0 : !isFinite(x) ? x > 0 ? 1 : -1 : x);
+		clean_data.length < data.length ? console.error("got infitiy or nan getting in") : null;
+		return clean_data;
+	}
+	predict(data) {
+		this.set_inputs(data);
+		this.prop_forward();
+		const result = this.get_output();
+		return result;
+	}
+	prop_forward() {
+		const to_propagate = this.matrix.filter(x => x.height != 0);
+		//all but begining row
+		for (let i = 0; i < to_propagate.length; i++) {
+			to_propagate[i].setActivation_Value();
+		}
+	}
+	set_inputs(input_data) {
+		const input_row = this.get_input_cells();
+		for (let i = 0; i < input_data.length; i++) {
+			input_row[i].activation_value = input_data[i];
+		}
+	}
+	execute(activation_values) {
+		this.mutate(activation_values[4]);
+		if (activation_values[5] > 0) {
+			this.mutateWeights(activation_values[6])
+		}
+		if (activation_values[7] > 0) {
+			this.mutateBias(activation_values[8])
+		}
+	}
+	mutateWeights(num) {
+		this.matrix.forEach(cell => cell.mutateWeights(num));
+	}
+	mutateBias(num) {
+		this.matrix.forEach(cell => cell.mutateBias(cell.mutation))
+	}
+}
+
+function blend_color() {
+	let r = 0;
+	let g = 0;
+	let b = 0
+	for (let i = 0; i < arguments.length - 1; i++) {
+		x = arguments[i].isLargest();
+		y = arguments[i].isSmallest();
+		r += x
+		g += arguments[i].isSmallest();
+		b += arguments[i].has_friends();
+	}
+	const rf = Math.floor((r) / arguments.length)
+	const gf = Math.floor((g) / arguments.length)
+	const bf = Math.floor((b) / arguments.length)
+	const color_string = `rgb(${rf},${gf},${bf})`
+	return color_string;
+}
+const MapRange=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
+const Map_R_Pos=(val,o_r)=>MapRange(val,o_r,[0,1]);
+const Map_R_Real=(val,o_r)=>MapRange(val,o_r,[-1,1]);
+const Trool=(type)=>type=="A"?-1:type=="B"?0:1;
+const triangle_area=(triangle)=>{
+	const width = triangle[0].get_distance_from_center(triangle[1]);
+	const half_point = width/2;
+	const angle = triangle[0].get_angle(triangle[1])
+	const x_transpose=Math.cos(triangle[0].x+angle*half_point)
+	const y_transpose=Math.sin(triangle[0].y+angle*half_point)
+	const center_width={x:x_transpose,y:y_transpose}
+	const height= triangle[2].get_distance_from_center(center_width)
+	return width*height/2
+}
+const divide = (scalar, arr) => arr.map(x => x / scalar || 0);
+const get_magnitude = (vec) => Math.sqrt(vec.reduce((acc, item) => acc + Math.pow(item, 2), 0))
+const inverse = (vec) => (vec.map(x => -x))
+const normalize = (thing) => divide(get_magnitude(thing), thing);
+const triangle_intersect = (tri_A, tri_B) => {
+	let intersection = false;
+	let sides_A = tri_A.map((point, i, arr) => Side(point, arr[i % arr.length]))
+	let sides_B = tri_B.map((point, i, arr) => Side(point, arr[i % arr.length]))
+	sides_A.forEach(sa => {
+		sides_B.forEach(sb => {
+			if (sides_intersect(sa, sb)) {
+				intersection = true;
+			}
+		})
+	})
+	return intersection
+}
+const Side = (p1, p2) => ({
+	a: p1,
+	b: p2,
+	distance: p1.get_distance_from_center(p2)
+})
+const sides_intersect = (sa, sb) => {
+	const det = (sa.b.x - sa.a.x) * (sb.b.y - sb.a.y) - (sb.b.x - sb.a.x) * (sa.b.y - sa.a.y)
+	if (det === 0) return false
+	const lambda = ((sb.b.y - sb.a.y) * (sb.b.x - sa.a.x) + (sb.a.x - sb.b.x) * (sb.b.y - sa.a.y)) / det;
+	const gamma = ((sa.a.y - sa.b.y) * (sb.b.x - sa.a.x) + (sa.b.x - sa.a.x) * (sb.b.y - sa.a.y)) / det;
+	return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+}
+const board = new Board(canvas, canvas2, count);
+ctx.fillStyle = "#FFFFFF"
+ctx.fillRect(0, 0, canvas.width, canvas.height)
+const debug_button = document.createElement("button");
+debug_button.innerText = "debug vision";
+debug_button.addEventListener("click", () => {
+	board.debug(0)
+})
+const debug_button2 = document.createElement("button");
+debug_button2.innerText = "debug text";
+debug_button2.addEventListener("click", () => {
+	board.debug(1)
+})
+const bg_color_btn = document.createElement("button");
+bg_color_btn.innerText = "background color";
+bg_color_btn.addEventListener("click", () => {
+	board.blank_coloring()
+})
+const catch_range_slider = document.createElement("input");
+catch_range_slider.type = "range";
+catch_range_slider.min = 50;
+catch_range_slider.max = 500;
+catch_range_slider.value = 100;
+catch_range_slider.addEventListener("input", (e) => {
+	console.log(e.target.value)
+	board.set_catch(Number(e.target.value))
+})
+const max_range_slider = document.createElement("input");
+max_range_slider.type = "range";
+max_range_slider.min = 100;
+max_range_slider.value = 200;
+max_range_slider.max = 500;
+max_range_slider.addEventListener("input", (e) => {
+	console.log(e.target.value)
+	board.set_max_connection_length(Number(e.target.value))
+})
+const sliders_container = document.createElement("div");
+const slider_min_div = document.createElement('div');
+const slider_max_div = document.createElement('div');
+slider_max_div.id = "smaxdiv"
+slider_min_div.id = "smindiv"
+slider_min_div.innerText = `catch:`
+slider_max_div.innerText = `release:`
+controls.appendChild(sliders_container);
+controls.appendChild(bg_color_btn);
+
+controls.appendChild(debug_button);
+controls.appendChild(debug_button2);
+sliders_container.appendChild(slider_max_div);
+sliders_container.appendChild(slider_min_div);
+slider_max_div.appendChild(max_range_slider);
+slider_min_div.appendChild(catch_range_slider);
+
+
+
+board.run(100); 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script> 
+</html>

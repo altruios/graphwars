@@ -1,0 +1,1122 @@
+
+
+<html>
+
+    <body>
+
+        <canvas height="1080" width="1920" id="canvas"></canvas>
+        <div id="controls"></div>
+
+    </body>
+
+<script>
+
+let ID_NUM = 0n;
+const ID = ()=>{
+    ID_NUM+=1n;
+    return ID_NUM
+}
+const canvas = document.getElementById('canvas');
+
+const ctx = canvas.getContext("2d");
+const controls = document.getElementById("controls");
+const count = 400;
+let GAME_COUNT=0;
+let iter_count=0;
+function random_int(min,max){
+
+    return Math.floor(Math.random() * (max - min) + min);
+
+}
+
+class Board{
+
+    constructor(canvas,ctx,count){
+
+        this.height=canvas.height;
+
+        this.width=canvas.width;
+
+        this.canvas=canvas;
+
+        this.ctx=ctx;
+
+        this.collections = [];
+
+        this.init_collection(count);
+
+        this._draw_text_flag=false;
+
+        this.bg_color="#000000";
+        this.catch_range =100;
+        this.max_range=200;
+        this.render_count=0;
+        this.game_count=0;
+        this.brain_template = new Brain();
+
+    }
+
+    init_collection(init_number){
+
+        for(let i=0;i<init_number;i++){
+
+            this.add_node()
+
+        }
+
+    }
+
+    set_catch(num){
+        this.catch_range=num;
+    }
+    set_max_connection_length(num){
+        this.max_range=num;
+    }
+
+    draw(){
+
+        const triangles = this.get_all_triangles();
+
+        triangles.forEach(trig=>{
+
+            const grd = this.ctx.createLinearGradient(trig[0].x,trig[0].y, (trig[1].x+trig[2].x)/2,(trig[1].y+trig[2].y)/2)            
+
+            grd.addColorStop(0, trig[0].color);
+
+            grd.addColorStop(.5, trig[1].color);
+
+            grd.addColorStop(1, trig[2].color);
+
+            this.ctx.fillStyle=grd;
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(trig[0].x,trig[0].y);
+
+            this.ctx.lineTo(trig[1].x,trig[1].y);
+
+            this.ctx.lineTo(trig[2].x,trig[2].y);
+
+            this.ctx.fill();
+
+        })
+
+ 
+
+        this.collections.forEach(node=>node.draw_connections(this.ctx));
+
+        this.collections.forEach(node=>node.draw_self(this.ctx));
+
+    
+    }
+
+    step(){
+
+        this.update_collections();
+
+       
+
+    }
+
+    update_collections(){
+
+        this.collections.forEach(node=>node.update(this.collections,this.width,this.height,this.catch_range,this.max_range))
+
+        this.handle_eat();
+
+        this.collections.forEach(node=>node._deletable?this.remove_node(node):null)
+
+    }
+
+    remove_node(node){
+
+        const index = this.collections.indexOf(node);
+
+        this.collections.splice(index,1);
+
+        this.collections.forEach(n=>n.clear_adjacent(node))
+
+        
+ 
+
+    }
+
+    handle_eat(){
+
+        this.collections.forEach(node=>{
+
+            node.connections.forEach(other_node=>{
+
+ 
+
+                const eater = node.r>=other_node.r?node:other_node;
+
+                const eatee = node.r<other_node.r?node:other_node;
+
+                const distance = eater.get_distance_between_edges(eatee);
+
+                if(distance<=0 && this.collections.length>0){
+
+                    if(eater.type==eatee.type){
+                        eater.change_type();
+                        eater.update_fitness();
+                        eatee._deletable=true;
+
+                       
+
+                    }else{
+
+                        eatee.change_type();
+
+                        eatee.impulse_away_from(eater);
+
+                    }
+
+                }
+
+            })
+
+ 
+
+        })
+
+    }
+
+    get_all_triangles(){
+
+        const triangle = (n1,n2,n3)=>([n1,n2,n3])
+
+        const contains_triangle = (arr,trig)=>arr.find(x=>x.includes(trig[0])&&x.includes(trig[1])&&x.includes(trig[2]))
+
+ 
+
+        const triangles=[];
+
+        const possible_triangle_nodes=[];
+
+        const visted_nodes=[];
+
+        this.collections.forEach(node_l1=>{
+
+            node_l1.connections.forEach(node_l2=>{
+
+                node_l2.connections.forEach(node_l3=>{
+
+                    const is_triangle = node_l3.connections.includes(node_l1);
+
+                    if(is_triangle && (!visted_nodes.includes(node_l1)||!visted_nodes.includes(node_l2))){
+                        
+                        const t = triangle(node_l1,node_l2,node_l3);
+
+                        if(!contains_triangle(triangles,t)){
+
+                            triangles.push(t);
+                            visted_nodes.push(t[0]);
+                            visted_nodes.push(t[1]);
+                            visted_nodes.push(t[2]);
+                            
+
+                        }
+
+ 
+
+                    }
+
+                })
+
+            })
+
+        })
+
+        return triangles;
+
+ 
+
+    }
+
+ 
+
+    add_node(){
+
+        const randx = Math.floor(Math.random()*this.canvas.width);
+
+        const randy = Math.floor(Math.random()*this.canvas.height);
+
+        const randt = Math.random()>0.3?"A":Math.random()>0.3?"B":"C";
+
+        this.collections.push(new Node(randx,randy,randt,this._draw_text_flag,this.brain_template));
+
+ 
+
+    }
+
+    blank(){
+
+        this.ctx.fillStyle=this.bg_color;
+
+        this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height)
+
+    }
+
+    blank_coloring(){
+
+        this.bg_color=this.bg_color=="#000000"?"#FFFFFF":"#000000"
+
+    }
+
+    render(){
+        this.blank()
+
+        this.draw();
+        this.step();
+        this.render_count++;
+
+    }
+    play_game(itterations){
+        for(let itter=0;itter<itterations;itter++){
+            this.render();
+        }
+        this.game_count++;
+        this.render_count=0;
+    }
+    train(epoc_count,itterations){
+        for(let i=0;i<epoc_count;i++){
+            this.play_game(itterations)
+            console.log("evaluating performance of games")
+            this.evaluate();
+        
+        }
+
+    }
+    evaluate(){
+        const fitest = this.collections.sort((a,b)=>a.finesss<b.fitness)[0];
+        if(!fitest){
+            console.error("no fitest - means no one left alive?");
+        }else{
+        this.brain_template = new Brain(fitest.Brain);
+        }
+        
+
+    }
+
+
+
+
+    debug(){
+
+        this._draw_text_flag=!this._draw_text_flag;
+
+        this.collections.forEach(n=>n.set_draw_text(this._draw_text_flag));
+
+        // console.table(test);
+
+      //  console.log(this.collections.length,"collection length");
+
+    }
+
+}
+
+ 
+
+class Node{
+
+    constructor(x,y,type,_draw_flag,brain){
+
+        this.x=x;
+
+        this.y=y;
+
+        this.id=`id-${x}-${y}`;
+
+        this.r=Math.floor(Math.max(1,Math.random()*20));
+
+        this.type=type;
+
+        this.connections=[];
+
+        this._deletable=false;
+
+        this._draw_text_flag=_draw_flag||false;
+        this.Brain = brain;
+        this.scale=1;
+        this.fitness=1;
+    }
+    update_fitness(){
+        this.fitness+=1;
+    }
+    get_distance_from_center(other_node){
+
+        const dx = (other_node.x-this.x);
+
+        const dy = (other_node.y-this.y);
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+        return df
+
+    }
+
+    change_type(){
+
+        this.type = this.type=="A" ? "B" : this.type=="B" ? "C" : "A";
+
+        console.assert(["A","B","C"].includes(this.type),"assert failed?")
+
+    }
+
+    clear_adjacent(node){
+
+        this.connections=this.connections.filter(x=>x!=node);
+
+    }
+
+    get_distance_between_edges(other_node){
+
+        const dx = (other_node.x-this.x);
+
+        const dy = (other_node.y-this.y);
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+        const rt = this.r+other_node.r;
+
+        return df-rt;
+
+    }
+
+    impulse_away_from(other_node){
+
+        const move_vector=[0,0];
+
+        const angle = this.get_angle(other_node);
+
+        this.x-=Math.cos(angle)*other_node.r;
+
+        this.y-=Math.sin(angle)*other_node.r;
+
+    }
+
+   
+
+    update_pos(all_bubbles){
+
+        //move towards connected bubbles always.
+
+        //move away from unconnected bubbles if they are bigger
+
+        //move toward unconnected bubbles if smaller
+
+ 
+
+        let move_vector=[0,0,0];
+
+        this.connections.forEach(other_node=>{
+
+            const angle = this.get_angle(other_node);
+
+            if(this.type=="A" &&other_node.type!="B"){
+
+                move_vector[0]-=Math.cos(angle);
+
+                move_vector[1]-=Math.sin(angle);
+
+            }
+
+            else if(this.type=="B" &&other_node.type!="C"){
+
+                move_vector[0]+=Math.cos(angle);
+
+                move_vector[1]+=Math.sin(angle);
+
+            }
+
+            else if(this.type=="C"&&other_node.type!="A"){
+
+ 
+
+                move_vector[0]-=Math.cos(angle);
+
+                move_vector[1]+=Math.sin(angle);
+
+            }
+
+            else{
+
+                move_vector[0]+=Math.cos(angle);
+
+                move_vector[1]-=Math.sin(angle);            }    
+
+        })    
+
+        if(move_vector.every(x=>x==0)){
+
+            move_vector=move_vector.map(x=>(Math.random()*2-1))
+
+        }
+
+       
+
+        const mv=normalize(move_vector);
+
+        this.x+=move_vector[0];
+
+        this.y+=move_vector[1];
+
+        this.r+=move_vector[2];
+
+ 
+
+    }
+
+ 
+
+   
+
+    update_r(){
+
+        const update_r = this.connections.length
+
+        this.r=(update_r+1)+0.1*this.fitness;
+
+    }
+
+    update_color(){
+
+ 
+
+        this.color = this.connections.length==0?"#aaaaaa":this.type=="A"?`#ff0000`:this.type=="B"?"#00ff00":"#0000ff"
+
+    }
+
+    boundries(width,height){
+
+        this.x=Math.min(Math.max(this.x,0),width);
+
+        this.y=Math.min(Math.max(this.y,0),height);
+
+    }
+
+    can_delete(width,height){
+
+        if(this.x<0||this.y<0||this.x>width||this.y>height){
+
+            console.log("out of bounds");
+
+            this._deletable=true;
+
+        }
+
+    }
+
+    connect(other_node){
+
+        if(!this.connections.includes(other_node)){
+
+            this.connections.push(other_node);
+
+        }
+
+        if(!other_node.connections.includes(this)){
+
+            other_node.connections.push(this);
+
+        }
+
+    }
+
+    make_connections(all_nodes,node_catch_range){
+
+        const not_connected_yet = all_nodes.filter(x=>this.connections.every(y=>y.id!=x.id)&&x.id!=this.id);
+
+        const close_enough = not_connected_yet.filter(other_node=>this.get_distance_from_center(other_node)<node_catch_range?true:false)
+
+        close_enough.forEach(n=>this.connect(n));
+
+    }
+
+    break_connections(node_max_range){
+
+        this.connections.forEach(other_node=>{
+
+            if(this.get_distance_from_center(other_node)>node_max_range){
+
+                this.disconnect(other_node);
+
+            }
+
+        })
+
+    }
+
+    disconnect(other_node){
+
+        other_node.connections=other_node.connections.filter(x=>x!=this);
+
+        this.connections=this.connections.filter(x=>x!=other_node);
+
+       
+
+    }
+
+    update(all_nodes,width,height,cr,mr){
+
+        this.make_connections(all_nodes,cr);
+
+        this.update_pos(all_nodes);
+
+        this.break_connections(mr);
+
+ 
+
+        this.update_r();
+
+        this.update_color();
+
+       
+
+        this.boundries(width,height);
+
+    }
+
+    draw(ctx){
+
+ 
+
+        this.draw_self(ctx);
+
+        this.draw_connections(ctx);
+
+ 
+
+    }
+
+    set_draw_text(flag){
+
+        this._draw_text_flag=flag;
+
+    }
+
+    draw_self(ctx){
+
+ 
+
+        ctx.fillStyle=this.color;
+
+        ctx.beginPath();
+
+        ctx.arc(this.x,this.y,this.r,0,2*Math.PI)
+
+        ctx.fill();
+
+        ctx.lineWidth=2;
+
+        ctx.stroke();
+
+        if(this._draw_text_flag){
+
+            this.draw_text(ctx);
+
+        }
+
+    }
+
+    draw_text(ctx){
+
+        ctx.fillStyle="#00ff00"
+
+        ctx.font = '20px serif';
+
+        ctx.fillText(this.type+" "+this.connections.length,this.x,this.y+20);
+
+        ctx.fillStyle="#ff00ff"
+
+ 
+
+        ctx.fillText(this.fitness,this.x,this.y-5);
+
+ 
+
+    }
+
+    draw_connections(ctx){
+
+        ctx.fillStyle=this.color;
+
+       
+
+        this.connections.forEach(other_node=>{
+
+           
+
+            ctx.strokeStyle=blend_color(this,other_node);
+
+            ctx.lineWidth = other_node.r>this.r?this.r/2:other_node.r/2;
+
+            ctx.beginPath();
+
+            ctx.moveTo(this.x,this.y);
+
+            ctx.lineTo(other_node.x,other_node.y);
+
+            ctx.stroke();
+
+        })
+
+       
+
+    }
+
+    isLargest(){
+
+        const is_largest = this.connections.every(x=>x.r<this.r)
+
+        return is_largest?255:100;
+
+    }
+
+    isSmallest(){
+
+        const is_smallest = this.connections.every(x=>x.r>this.r)
+
+        return is_smallest?255:100;
+
+    }
+
+    has_friends(){
+
+        const has_friends = this.connections.length>1;
+
+        return has_friends?255:100;
+
+ 
+
+    }
+
+    get_angle(other_node){
+
+        const dx = other_node.x-this.x;
+
+        const dy = other_node.y-this.y;
+
+        const angle = Math.atan(dy,dx);
+
+        return angle;
+
+    }
+
+}
+class Cell{
+    constructor(numorcell){
+        this.connections_forward=[];
+        this.connections_backwards=[];
+        this.weights=[];
+        this.activation_value=Math.cos(Math.random());
+        this.bias=Math.sin(Math.random());
+        this.height=null;
+        this.row_index=null;
+        this.mutation=0.001;
+        this.id=ID();
+        if(Number(numorcell)!=NaN){
+            this.__init(numorcell);
+        }else{
+            this._copy(numorcell);
+        }
+    }
+    __init(num){
+        this.height=num;
+    }
+    wake(){
+        this.weights = this.connections_forward.map(cell=>cell.activation_value*(cell.bias))
+        this.setActivation_Value();
+    }
+    setActivation_Value(){
+        this.activation_value=Math.tanh(this.weights.reduce((ACTIVATION,weight,index_weight,weight_arr)=>{
+            //we do the sum(a+w) +b
+            ACTIVATION+=weight*this.connections_backwards[index_weight]
+            return ACTIVATION
+        },0)+this.bias);
+    }
+    propagate_change_forward(){
+        this.connections_forward.forEach(cell=>cell.setActivation_Value());
+    }
+    setMutation(value){
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation)))
+
+    }
+    mutateWeights(){
+        this.weights=this.weights.map(x=>this.mutation_rate_modification(x));
+    }
+    mutateBias(){
+        this.bias=this.mutation_rate_modification(this.bias);    
+    }
+    _copy(cell){
+        //map perfect wires
+        this.connections_forward= cell.connections_forward.map(x=>x)
+        this.connections_backwards= cell.connections_backwards.map(x=>x)
+        
+        //map imperfect numbers
+        this.weights= cell.weights.map(x=>this.mutation_rate_modification(x))
+        this.activation_value=this.mutation_rate_modification(activation_value);
+        this.bias=this.mutation_rate_modification(cell.bias);
+        this.mutation=this.mutation_rate_modification(cell.mutation)
+    }
+    mutation_rate_modification(value){
+        if(Math.random<this.mutation){
+            return value+Math.sin(this.mutation_rate);
+        }
+        return value;
+    }
+    mutation_advance(){
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation + this.mutation/100)))
+    }
+    mutation_reduce(){
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation - this.mutation/100)))
+        
+    }
+    connect(other_cell,dir){
+        if(dir==="forward"){
+            const index = this.connections_forward.indexOf(other_cell);
+            !index?this.connections_forward.push(cell):null;
+        }else{
+            const index = this.connections_backwards.indexOf(other_cell);
+            !index?this.connections_backwards.push(cell):null;
+        }
+    }
+}
+class Brain{
+    constructor(template){
+        this.matrix = []
+        this.host=null;
+        this.last_move_vec=[0,0];
+        this.input_row=[];
+        this.output_row=[];
+        this.init_matrix(template);
+    }
+    init_matrix(template){
+        this.matrix=[];
+        if(template){
+            this.matrix =template.matrix.map(cell=>new Cell(cell));
+        }else{
+            const height = 4;
+            const max_breadth = 5;
+            const answer_layer = 9; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
+            const input_layer = 20;
+            for(let i=0; i<height;i++){
+                const random_breadth = !i==0?i==height?answer_layer:Math.floor(Math.random()*max_breadth):input_layer;
+                for(let j=0;j<random_breadth;j++){
+                    this.matrix.push(new Cell(i));
+                }
+            }
+            for(let i=0;i<answer_layer;i++){
+                this.matrix.push(new Cell(height+i));
+            }
+            this.matrix.forEach((cell,i,arr)=>{
+                arr.forEach((mcell,mi,marr)=>{
+                    if(!mcell.id==cell.id){
+                        mcell.height>cell?mcell.connect(cell,"backward"):null;
+                        cell.height<mcell?cell.connect(mcell,"forward"):null;
+                    }
+                })
+            })
+            this.matrix.forEach(cell=>cell.wake())
+        }
+
+    }
+    spawn_next(){
+        return new Brain(this);
+    }
+    connect_host(host){
+        this.host=host;
+    }
+    remove_cell(cell_index){
+        const cell = this.matrix.find(x=>x.height==cell_index);
+        const index = this.matrix.indexOf(cell);
+        this.matrix.forEach(c=>c.connected_to(cell)?c.disconnect(cell):null)
+    }
+    find_equivelent_cell(cell,xpos){
+        const row = this.matrix.filter(x=>x.height==cell.height);
+        const get_row=(arr,cell)=>{return arr.indexOf(cell)}
+        return this.matrix.find(c=>c.height==cell.height&& (get_row(c)==Math.min(xpos,row.height)))
+    }
+    run(other_nodes){
+        const data = this.get_data(other_nodes);
+        this.predict(data);
+        this.decide_to_learn()?this.execute(this.last_row.map(x=>x.activation_value)):null;
+        return this.get_move_vector();
+    }
+    get_move_vector(){
+        return[this.output_row[0],this.output_row[1]]
+    }
+    decide_to_learn(){
+        return this.output_row[8]<=this.output_row[9]
+    }
+    get_data(other_nodes){
+        //okay ==so data is going to come in an array
+        const data = [];
+        const range_fn =(x)=> host.get_distance_between_edges(x);
+        const small_circle = other_nodes.map(node=>range_fn(50));
+        const mid_ring = other_nodes.map(node=>range_fn(250)&& !small_circle.includes(node));
+
+        const fat_ring = other_nodes.map(node=>range_fn(150)&&!mid_ring.includes(node));
+        data.push(...this.last_move_vec)
+        const small_c_A = small_circle.filter(x=>x.type=="A")
+        const small_c_B = small_circle.filter(x=>x.type=="A")
+        const small_c_C = small_circle.filter(x=>x.type=="A")
+
+        const mid_r_A = mid_ring.filter(x=>x.type=="A")
+        const mid_r_B = mid_ring.filter(x=>x.type=="A")
+        const mid_r_C = mid_ring.filter(x=>x.type=="A")
+
+        const fat_r_A = fat_ring.filter(x=>x.type=="A")
+        const far_r_B = fat_ring.filter(x=>x.type=="A")
+        const far_r_C = fat_ring.filter(x=>x.type=="A")
+
+        data.push(small_c_A.length)
+        data.push(small_c_B.length)
+        data.push(small_c_C.length)
+
+        data.push(mid_r_A.length)
+        data.push(mid_r_B.length)
+        data.push(mid_r_C.length)
+
+        data.push(fat_r_A.length)
+        data.push(far_r_B.length)
+        data.push(far_r_C.length)
+
+
+        data.push(small_c_A.map(x=>x.fitness/this.fitness))
+        data.push(small_c_B.map(x=>x.fitness/this.fitness))
+        data.push(small_c_C.map(x=>x.fitness/this.fitness))
+
+        data.push(mid_r_A.map(x=>x.fitness/this.fitness))
+        data.push(mid_r_B.map(x=>x.fitness/this.fitness))
+        data.push(mid_r_C.map(x=>x.fitness/this.fitness))
+
+        data.push(fat_r_A.map(x=>x.fitness/this.fitness))
+        data.push(far_r_B.map(x=>x.fitness/this.fitness))
+        data.push(far_r_C.map(x=>x.fitness/this.fitness))
+
+
+
+
+
+        return data;
+    }
+    predict(data){
+
+        this.input_row = this.matrix.filter(x=>x.height==0);
+        data.forEach(d=>this.input_row.propagate_change_forward(d));
+        this.output_row = this.matrix.filter((x,i,arr)=>x.height==arr[arr.length-1].height);
+ 
+    }
+    execute(activation_values){
+        if(activation_values[2]>0){
+            this.mutateChange(activation_values[3]);
+        }
+        if(activation_values[4]>0){
+            this.mutateWeights(activation_values[5])
+        }
+        if(activation_values[6]>0){
+            this.mutateBias(activation_values[7])
+        }
+    }
+    mutateChange(num){
+        //num is fixed to 8 digits after zero;
+        //temp does nothing
+    }
+
+    mutateWeights(num){
+        //temp does nothing
+    }
+    mutateBias(num){
+            //temp does nothing
+    }
+
+}
+
+
+
+function game(board){
+    board.run()
+    GAME_COUNT++
+}
+
+
+function blend_color(){
+
+    let r=0;    
+    let g=0;
+    let b=0
+    for(let i=0;i<arguments.length-1;i++){
+        x=arguments[i].isLargest();
+        y=arguments[i].isSmallest();
+        
+        r+=x
+
+        g+=arguments[i].isSmallest();
+
+        b+=arguments[i].has_friends();
+        
+        }
+
+        const rf = Math.floor((r)/arguments.length)
+
+        const gf = Math.floor((g)/arguments.length)
+
+        const bf = Math.floor((b)/arguments.length)
+        const color_string = `rgb(${rf},${gf},${bf})`
+ 
+
+        return color_string;
+
+}
+
+const divide=(scalar,arr)=>arr.map(x=>x/scalar||0);
+
+const get_magnitude=(vec)=>Math.sqrt(vec.reduce((acc,item)=>acc+Math.pow(item,2),0))
+
+const inverse=(vec)=>(vec.map(x=>-x))
+
+const normalize=(thing)=>divide(get_magnitude(thing),thing);
+const triangle_intersect=(tri_A,tri_B)=>{
+    let intersection = false;
+    let sides_A = tri_A.map((point,i,arr)=>Side(point,arr[i%arr.length]))
+    let sides_B = tri_B.map((point,i,arr)=>Side(point,arr[i%arr.length]))
+    sides_A.forEach(sa=>{
+        sides_B.forEach(sb=>{
+            if(sides_intersect(sa,sb)){
+                intersection=true;
+            }
+        })
+    })
+
+
+    return intersection
+
+}
+const Side = (p1,p2)=>({a:p1,b:p2,distance:p1.get_distance_from_center(p2)})
+    const sides_intersect=(sa,sb)=>{
+        const det = (sa.b.x - sa.a.x) * (sb.b.y - sb.a.y) - (sb.b.x - sb.a.x ) * (sa.b.y - sa.a.y)
+        if(det===0) return false
+        const lambda =((sb.b.y-sb.a.y)* (sb.b.x - sa.a.x) + (sb.a.x - sb.b.x )*(sb.b.y - sa.a.y)) / det;
+        const gamma = ((sa.a.y-sa.b.y)* (sb.b.x - sa.a.x) + (sa.b.x - sa.a.x) * (sb.b.y - sa.a.y)) / det;
+        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    }
+    //a =l1:point1.x/b=y c=l1:point2.x/d=y
+    //p =l2:point1.x/q=y r=l2:point2.x/s=y
+    //p 
+    function intersects(a,b,c,d,p,q,r,s) {
+  var det, gamma, lambda;
+  det = (c - a) * (s - q) - (r - p) * (d - b);
+  if (det === 0) {
+    return false;
+  } else {
+    lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+    gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+    return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+  }
+};
+
+
+
+
+const board = new Board(canvas,ctx,count);
+
+ctx.fillStyle= "#FFFFFF"
+
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+const debug_button = document.createElement("button");
+
+debug_button.innerText="debug";
+
+debug_button.addEventListener("click",()=>{board.debug()})
+
+ 
+
+const bg_color_btn = document.createElement("button");
+
+ 
+
+bg_color_btn.innerText="background color";
+
+bg_color_btn.addEventListener("click",()=>{board.blank_coloring()})
+
+ 
+
+
+
+const catch_range_slider = document.createElement("input");
+    catch_range_slider.type = "range";
+    catch_range_slider.min=50;
+    catch_range_slider.max=500;
+    catch_range_slider.value=100;
+
+catch_range_slider.addEventListener("input",(e)=>{
+    console.log(e.target.value)
+    board.set_catch(Number(e.target.value))
+
+})
+
+
+const max_range_slider = document.createElement("input");
+    max_range_slider.type = "range";
+    max_range_slider.min=100;
+    max_range_slider.value=200;
+    max_range_slider.max=500;
+    max_range_slider.addEventListener("input",(e)=>{
+    console.log(e.target.value)
+
+    board.set_max_connection_length(Number(e.target.value)
+)})
+
+
+const sliders_container = document.createElement("div");
+const slider_min_div = document.createElement('div');
+const slider_max_div = document.createElement('div');
+    slider_max_div.id="smaxdiv"
+    slider_min_div.id="smindiv"
+    slider_min_div.innerText=`catch:`
+
+    slider_max_div.innerText=`release:`
+
+
+controls.appendChild(debug_button);
+
+document.body.appendChild(sliders_container);
+sliders_container.appendChild(slider_max_div);
+sliders_container.appendChild(slider_min_div);
+
+slider_max_div.appendChild(max_range_slider);
+slider_min_div.appendChild(catch_range_slider);
+
+document.body.appendChild(bg_color_btn);
+
+ 
+
+board.train(30,100);
+
+
+/*
+const run = window.setInterval(()=>{
+    if(board.game_count>=100){
+        window.clearInterval(run);
+        //we reset the board here - do again
+        //where we change out movement brain - spawn new ones
+        //for now - we just do again?
+        board.evaluate();
+    }
+    board.play_game(1000)
+        this.render_count=0;
+    }()
+},10)
+*/
+ 
+
+</script>
+
+
+
+</html>
+
+ 

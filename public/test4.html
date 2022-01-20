@@ -1,0 +1,2227 @@
+<html>
+
+ 
+
+    <body>
+
+ 
+
+        <canvas height="880" width="920" id="canvas"></canvas><div id="display"></div>
+
+        <div id="controls"></div>
+
+ 
+
+    </body>
+
+ 
+
+<script>
+
+ 
+
+let ID_NUM = 0n;
+
+const ID = ()=>{
+
+    ID_NUM+=1n;
+
+    return ID_NUM
+
+}
+
+const canvas = document.getElementById('canvas');
+
+const DISPLAY = document.getElementById("display");
+
+const ctx = canvas.getContext("2d");
+
+const controls = document.getElementById("controls");
+
+const count = 122;
+
+let GAME_COUNT=0;
+
+let iter_count=0;
+
+function random_int(min,max){
+
+ 
+
+    return Math.floor(Math.random() * (max - min) + min);
+
+ 
+
+}
+
+ 
+
+class Board{
+
+ 
+
+    constructor(canvas,ctx,count){
+
+        this.cell_count=count;
+
+        this.height=canvas.height;
+
+ 
+
+        this.width=canvas.width;
+
+ 
+
+        this.canvas=canvas;
+
+ 
+
+        this.ctx=ctx;
+
+ 
+
+        this.collections = [];
+
+ 
+
+        this.best_fitness=0;
+
+        this._draw_text_flag=false;
+        this.max_render_count=1600;
+ 
+
+        this.bg_color="#000000";
+
+        this.catch_range =100;
+
+        this.max_range=200;
+
+        this.render_count=0;
+
+        this.game_count=0;
+
+        this.epoc=0;
+
+        this.brain_template = new Brain();
+
+        this.init_collection();
+        this.render_speed=10;
+
+ 
+
+    }
+
+    set_epoc(epoc){
+
+        this.epoc=epoc;
+
+ 
+
+    }
+
+    init_collection(){
+
+ 
+
+        for(let i=0;i<this.cell_count;i++){
+
+ 
+
+            this.add_node()
+
+ 
+
+        }
+
+ 
+
+    }
+
+ 
+
+    set_catch(num){
+
+        this.catch_range=num;
+
+    }
+
+    set_max_connection_length(num){
+
+        this.max_range=num;
+
+    }
+
+ 
+
+    draw(){
+
+ 
+
+        const triangles = this.get_all_triangles();
+
+        this.reward_triangles(triangles)
+
+        triangles.forEach(trig=>{
+
+ 
+
+            const grd = this.ctx.createLinearGradient(trig[0].x,trig[0].y, (trig[1].x+trig[2].x)/2,(trig[1].y+trig[2].y)/2)            
+
+ 
+
+            grd.addColorStop(0, trig[0].color);
+
+ 
+
+            grd.addColorStop(.5, trig[1].color);
+
+ 
+
+            grd.addColorStop(1, trig[2].color);
+
+ 
+
+            this.ctx.fillStyle=grd;
+
+ 
+
+            this.ctx.beginPath();
+
+ 
+
+            this.ctx.moveTo(trig[0].x,trig[0].y);
+
+ 
+
+            this.ctx.lineTo(trig[1].x,trig[1].y);
+
+ 
+
+            this.ctx.lineTo(trig[2].x,trig[2].y);
+
+ 
+
+            this.ctx.fill();
+
+ 
+
+        })
+
+ 
+
+ 
+
+ 
+
+        this.collections.forEach(node=>node.draw_connections(this.ctx));
+
+ 
+
+        this.collections.forEach(node=>node.draw_self(this.ctx));
+
+ 
+
+   
+
+        this.display();
+
+    }
+
+    display(){
+
+        const fitest = this.get_fitest_node();
+
+        DISPLAY.innerText=`render_count:${this.render_count}
+
+        cell_count:${this.collections.length}
+
+        fitest cell: ${fitest.id}, (${fitest.x.toFixed(2)},${fitest.y.toFixed(2)})
+
+        f-current: ${this.get_fitest_node().fitness}
+
+        f-record:${this.best_fitness}
+
+        brain info:
+
+        ${fitest.Brain.get_output().map((x,i)=>`output${i}: ${x.toFixed(2)}\n`)}
+
+        ${fitest.Brain.get_input_cells().map((x,i)=>`input${i}:${x.activation_value.toFixed(3)}\n`)}
+
+        `
+        
+        const old_display = document.getElementById('brain_display_div')
+        old_display?.remove();
+        const new_display = fitest.Brain.display();
+
+        document.body.appendChild(new_display);
+
+    }
+
+    step(){
+
+ 
+
+        this.update_collections();
+
+ 
+
+       
+
+ 
+
+    }
+
+ 
+
+    update_collections(){
+
+ 
+
+        this.collections.forEach(node=>node.update(this.collections,this.width,this.height,this.catch_range,this.max_range))
+
+ 
+
+        this.handle_eat();
+
+ 
+
+        this.collections.forEach(node=>node._deletable?this.remove_node(node):null)
+
+ 
+
+    }
+
+ 
+
+    remove_node(node){
+
+ 
+
+        const index = this.collections.indexOf(node);
+
+ 
+
+        this.collections.splice(index,1);
+
+ 
+
+        this.collections.forEach(n=>n.clear_adjacent(node))
+
+ 
+
+       
+
+ 
+
+ 
+
+    }
+
+    reward_triangles(triangles){
+
+        triangles.forEach(triangle=>triangle.forEach(node=>node.update_fitness(1)))
+
+    }
+
+    handle_eat(){
+
+ 
+
+        this.collections.forEach(node=>{
+
+ 
+
+            node.connections.forEach(other_node=>{
+
+ 
+
+ 
+
+ 
+
+                const eater = node.r>=other_node.r?node:other_node;
+
+ 
+
+                const eatee = node.r<other_node.r?node:other_node;
+
+ 
+
+                const distance = eater.get_distance_between_edges(eatee);
+
+ 
+
+                if(distance<=0 && this.collections.length>0){
+
+ 
+
+                    if(eater.type==eatee.type){
+
+                        eater.change_type();
+
+                        eater.update_fitness(-Math.floor(eatee.fitness/2));
+
+                        eatee._deletable=true;
+
+ 
+
+                       
+
+ 
+
+                    }else{
+
+ 
+
+                        eatee.change_type();
+
+ 
+
+                        eatee.impulse_away_from(eater);
+
+ 
+
+                    }
+
+ 
+
+                }
+
+ 
+
+            })
+
+ 
+
+ 
+
+ 
+
+        })
+
+ 
+
+    }
+
+ 
+
+    get_all_triangles(){
+
+ 
+
+        const triangle = (n1,n2,n3)=>([n1,n2,n3])
+
+ 
+
+        const contains_triangle = (arr,trig)=>arr.find(x=>x.includes(trig[0])&&x.includes(trig[1])&&x.includes(trig[2]))
+
+ 
+
+ 
+
+ 
+
+        const triangles=[];
+
+ 
+
+        const possible_triangle_nodes=[];
+
+ 
+
+        const visted_nodes=[];
+
+ 
+
+        this.collections.forEach(node_l1=>{
+
+ 
+
+            node_l1.connections.forEach(node_l2=>{
+
+ 
+
+                node_l2.connections.forEach(node_l3=>{
+
+ 
+
+                    const is_triangle = node_l3.connections.includes(node_l1);
+
+ 
+
+                    if(is_triangle && (!visted_nodes.includes(node_l1)||!visted_nodes.includes(node_l2))){
+
+                       
+
+                        const t = triangle(node_l1,node_l2,node_l3);
+
+ 
+
+                        if(!contains_triangle(triangles,t)){
+
+ 
+
+                            triangles.push(t);
+
+                            visted_nodes.push(t[0]);
+
+                            visted_nodes.push(t[1]);
+
+                            visted_nodes.push(t[2]);
+
+                           
+
+ 
+
+                        }
+
+ 
+
+ 
+
+ 
+
+                    }
+
+ 
+
+                })
+
+ 
+
+            })
+
+ 
+
+        })
+
+ 
+
+        return triangles;
+
+ 
+
+ 
+
+ 
+
+    }
+
+ 
+
+ 
+
+ 
+
+    add_node(){
+
+ 
+
+        const randx = Math.floor(Math.random()*this.canvas.width);
+
+ 
+
+        const randy = Math.floor(Math.random()*this.canvas.height);
+
+ 
+
+        const randt = Math.random()>0.3?"A":Math.random()>0.3?"B":"C";
+
+ 
+
+        this.collections.push(new Node(randx,randy,randt,this._draw_text_flag,this.brain_template,this));
+
+ 
+
+ 
+
+ 
+
+    }
+
+ 
+
+    blank(){
+
+ 
+
+        this.ctx.fillStyle=this.bg_color;
+
+ 
+
+        this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height)
+
+ 
+
+    }
+
+ 
+
+    blank_coloring(){
+
+ 
+
+        this.bg_color=this.bg_color=="#000000"?"#FFFFFF":"#000000"
+
+ 
+
+    }
+
+    get_fitest_val(){
+
+        return Math.max.apply(Math, this.collections.map((o)=>o.fitness))
+
+ 
+
+    }
+
+    get_fitest_node(){
+
+       return this.collections.find(x=>x.fitness>=this.get_fitest_val())
+
+    }
+
+    render(){
+
+        this.blank()
+
+        this.draw();
+
+        this.step();
+
+        this.render_count++;
+
+        console.log("render");
+
+ 
+
+    }
+
+    run(game_time){
+
+        const that = this;
+
+        const engine = window.setInterval(()=>{
+
+            if(that.render_count>that.max_render_count) that.evaluate()
+
+            else that.render();
+
+        },this.render_speed)
+
+    }
+
+    clear_all_nodes(){
+
+        this.collections=[];
+
+    }
+
+    new_game(wining_node){
+
+        this.render_count=0;
+
+        this.game_count++;
+
+        this.brain_template = wining_node.Brain.spawn_next(this.game_count);
+
+        this.best_fitness=this.best_fitness>wining_node.fitness?this.best_fitness:wining_node.fitness;
+
+        console.log("new game",wining_node.fitness,this.best_fitness)
+
+ 
+
+        this.clear_all_nodes();
+
+        this.init_collection();
+
+    }
+
+    evaluate(){
+
+        const fitest = this.get_fitest_node();
+
+        if(!fitest){
+
+            console.error("no fitest - means no one left alive?");
+
+        }else{
+
+        console.log("evaluated", fitest.fitness,"is max fitness,");
+
+        this.new_game(fitest);
+
+        }
+
+       
+
+ 
+
+    }
+
+
+
+
+    debug(){
+
+ 
+
+        this._draw_text_flag=!this._draw_text_flag;
+
+ 
+
+        this.collections.forEach(n=>n.set_draw_text(this._draw_text_flag));
+
+ 
+
+
+ 
+
+    }
+
+    test(node){
+
+        console.log(node.Brain.predict(this.collections));
+
+    }
+
+ 
+
+}
+
+ 
+
+ 
+
+ 
+
+class Node{
+
+ 
+
+    constructor(x,y,type,_draw_flag,brain,ref){
+
+        if(x==NaN){
+
+            console.log("x is wrong");
+
+        }
+
+        this.x=x;
+
+ 
+
+        this.y=y;
+
+        this.ref=ref;
+
+        this.id=`id-${x}-${y}`;
+
+ 
+
+        this.r=Math.floor(Math.max(1,Math.random()*20));
+
+ 
+
+        this.type=type;
+
+ 
+
+        this.connections=[];
+
+ 
+
+        this._deletable=false;
+
+ 
+
+        this._draw_text_flag=_draw_flag||false;
+
+        this.Brain = brain.spawn_next(ref.game_count);
+
+        this.Brain.connect_host(this);
+
+        this.scale=1;
+
+        this.fitness=1;
+
+    }
+
+    update_fitness(amount){
+
+        this.fitness+=amount;
+
+    }
+
+    get_distance_from_center(other_node){
+
+ 
+
+        const dx = (other_node.x-this.x);
+
+ 
+
+        const dy = (other_node.y-this.y);
+
+ 
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+ 
+
+        return df
+
+ 
+
+    }
+
+ 
+
+    change_type(){
+
+ 
+
+        this.type = this.type=="A" ? "B" : this.type=="B" ? "C" : "A";
+
+ 
+
+        console.assert(["A","B","C"].includes(this.type),"assert failed?")
+
+ 
+
+    }
+
+ 
+
+    clear_adjacent(node){
+
+ 
+
+        this.connections=this.connections.filter(x=>x!=node);
+
+ 
+
+    }
+
+ 
+
+    get_distance_between_edges(other_node){
+
+ 
+
+        const dx = (other_node.x-this.x);
+
+ 
+
+        const dy = (other_node.y-this.y);
+
+ 
+
+        const df= Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
+
+ 
+
+        const rt = this.r+other_node.r;
+
+ 
+
+        return df-rt;
+
+ 
+
+    }
+
+ 
+
+    impulse_away_from(other_node){
+
+ 
+
+        const move_vector=[0,0];
+
+ 
+
+        const angle = this.get_angle(other_node);
+
+ 
+
+        this.x-=Math.cos(angle)*other_node.r;
+
+ 
+
+        this.y-=Math.sin(angle)*other_node.r;
+
+ 
+
+    }
+
+ 
+
+    move(all_bubbles){
+
+        const result = this.Brain.run(all_bubbles);
+
+        this.x+=result[0]/result[1]||0;
+
+        this.y+=result[2]/result[3]||0;
+
+        if(!this.y||!this.x){
+            console.log(result,"is result from failed brain");
+            console.log(this.x,this.y, "are not numbers?"," brain below");
+            console.log(this.Brain);
+            console.error("brain malfunction");
+        }
+
+
+    }
+
+ 
+
+ 
+
+ 
+
+   
+
+ 
+
+    update_r(){
+
+ 
+
+        const update_r = this.connections.length
+
+ 
+
+        this.r= this.fitness/100+(update_r+1);
+
+ 
+
+    }
+
+ 
+
+    update_color(){
+
+ 
+
+ 
+
+ 
+
+        this.color = this.connections.length==0?"#aaaaaa":this.type=="A"?`#ff0000`:this.type=="B"?"#00ff00":"#0000ff"
+
+ 
+
+    }
+
+ 
+
+    boundries(width,height){
+
+ 
+
+        this.x=Math.min(Math.max(this.x,0),width);
+
+ 
+
+        this.y=Math.min(Math.max(this.y,0),height);
+
+ 
+
+    }
+
+ 
+
+    can_delete(width,height){
+
+ 
+
+        if(this.x<0||this.y<0||this.x>width||this.y>height){
+
+ 
+
+            console.log("out of bounds");
+
+ 
+
+            this._deletable=true;
+
+ 
+
+        }
+
+ 
+
+    }
+
+ 
+
+    connect(other_node){
+
+ 
+
+        if(!this.connections.includes(other_node)){
+
+ 
+
+            this.connections.push(other_node);
+
+ 
+
+        }
+
+ 
+
+        if(!other_node.connections.includes(this)){
+
+ 
+
+            other_node.connections.push(this);
+
+ 
+
+        }
+
+ 
+
+    }
+
+ 
+
+    make_connections(all_nodes,node_catch_range){
+
+ 
+
+        const not_connected_yet = all_nodes.filter(x=>this.connections.every(y=>y.id!=x.id)&&x.id!=this.id);
+
+ 
+
+        const close_enough = not_connected_yet.filter(other_node=>this.get_distance_from_center(other_node)<node_catch_range?true:false)
+
+ 
+
+        close_enough.forEach(n=>this.connect(n));
+
+ 
+
+    }
+
+ 
+
+    break_connections(node_max_range){
+
+ 
+
+        this.connections.forEach(other_node=>{
+
+ 
+
+            if(this.get_distance_from_center(other_node)>node_max_range){
+
+ 
+
+                this.disconnect(other_node);
+
+ 
+
+            }
+
+ 
+
+        })
+
+ 
+
+    }
+
+ 
+
+    disconnect(other_node){
+
+ 
+
+        other_node.connections=other_node.connections.filter(x=>x!=this);
+
+ 
+
+        this.connections=this.connections.filter(x=>x!=other_node);
+
+ 
+
+       
+
+ 
+
+    }
+
+ 
+
+    update(all_nodes,width,height,cr,mr){
+
+ 
+
+        this.make_connections(all_nodes,cr);
+
+        this.move(all_nodes);
+
+       // this.update_pos(all_nodes);
+
+ 
+
+        this.break_connections(mr);
+
+ 
+
+ 
+
+ 
+
+        this.update_r();
+
+ 
+
+        this.update_color();
+
+ 
+
+       
+
+ 
+
+        this.boundries(width,height);
+
+ 
+
+    }
+
+ 
+
+    draw(ctx){
+
+ 
+
+ 
+
+ 
+
+        this.draw_self(ctx);
+
+ 
+
+        this.draw_connections(ctx);
+
+ 
+
+ 
+
+ 
+
+    }
+
+ 
+
+    set_draw_text(flag){
+
+ 
+
+        this._draw_text_flag=flag;
+
+ 
+
+    }
+
+ 
+
+    draw_self(ctx){
+
+        if(this.ref._draw_text_flag==true){
+
+            const ctx = this.ref.ctx;
+
+            console.log("drawing data range");
+
+            ctx.fillStyle="rgba(50,50,200,.2)";
+
+            ctx.beginPath();
+
+            ctx.arc(this.x,this.y,250,0,2*Math.PI);
+
+            ctx.fill();
+
+ 
+
+            ctx.fillStyle="rgba(200,200,0,.2)";
+
+            ctx.beginPath();
+
+            ctx.arc(this.x,this.y,150,0,2*Math.PI);
+
+            ctx.fill();
+
+ 
+
+            ctx.fillStyle="rgba(255,0,0,.2)";
+
+            ctx.beginPath();
+
+            ctx.arc(this.x,this.y,50,0,2*Math.PI);
+
+            ctx.fill();
+
+ 
+
+        }
+
+ 
+
+ 
+
+        ctx.fillStyle=this.color;
+
+ 
+
+        ctx.beginPath();
+
+ 
+
+        ctx.arc(this.x,this.y,this.r,0,2*Math.PI)
+
+ 
+
+        ctx.fill();
+
+ 
+
+        ctx.lineWidth=2;
+
+ 
+
+        ctx.stroke();
+
+ 
+
+        if(this._draw_text_flag){
+
+ 
+
+            this.draw_text(ctx);
+
+ 
+
+        }
+
+ 
+
+    }
+
+ 
+
+    draw_text(ctx){
+
+ 
+
+        ctx.fillStyle="#00ff00"
+
+ 
+
+        ctx.font = '20px serif';
+
+ 
+
+        ctx.fillText(this.type+" "+this.connections.length,this.x,this.y+20);
+
+ 
+
+        ctx.fillStyle="#ff00ff"
+
+ 
+
+ 
+
+ 
+
+        ctx.fillText(this.fitness,this.x,this.y-5);
+
+ 
+
+ 
+
+ 
+
+    }
+
+ 
+
+    draw_connections(ctx){
+
+ 
+
+        ctx.fillStyle=this.color;
+
+ 
+
+       
+
+ 
+
+        this.connections.forEach(other_node=>{
+
+ 
+
+           
+
+ 
+
+            ctx.strokeStyle=blend_color(this,other_node);
+
+ 
+
+            ctx.lineWidth = other_node.r>this.r?this.r/2:other_node.r/2;
+
+ 
+
+            ctx.beginPath();
+
+ 
+
+            ctx.moveTo(this.x,this.y);
+
+ 
+
+            ctx.lineTo(other_node.x,other_node.y);
+
+ 
+
+            ctx.stroke();
+
+ 
+
+        })
+
+ 
+
+       
+
+ 
+
+    }
+
+ 
+
+    isLargest(){
+
+ 
+
+        const is_largest = this.connections.every(x=>x.r<this.r)
+
+ 
+
+        return is_largest?255:100;
+
+ 
+
+    }
+
+ 
+
+    isSmallest(){
+
+ 
+
+        const is_smallest = this.connections.every(x=>x.r>this.r)
+
+ 
+
+        return is_smallest?255:100;
+
+ 
+
+    }
+
+ 
+
+    has_friends(){
+
+ 
+
+        const has_friends = this.connections.length>1;
+
+ 
+
+        return has_friends?255:100;
+
+ 
+
+ 
+
+ 
+
+    }
+
+ 
+
+    get_angle(other_node){
+
+ 
+
+        const dx = other_node.x-this.x;
+
+ 
+
+        const dy = other_node.y-this.y;
+
+ 
+
+        const angle = Math.atan(dy,dx);
+
+ 
+
+        return angle;
+
+ 
+
+    }
+
+ 
+
+}
+
+class Cell{
+
+    constructor(numorcell,brain){
+
+        this.connections_forward=[];
+
+        this.connections_backwards=[];
+
+        this.weights=[];
+
+        this.activation_value=Math.cos(Math.random()-1*2);
+
+        this.bias=Math.sin(Math.random()-1*2);
+
+        this.height=null;
+
+        this.row_index=null;
+
+        this.mutation=0.1;
+
+        this.id=ID();
+
+        this.is_answer_row=false;
+
+        this.Brain = brain;
+
+        if(!numorcell?.id){
+
+            this.__init(numorcell);
+
+        }else{
+
+            this._copy(numorcell);
+
+        }
+
+    }
+
+ 
+
+    __init(num){
+
+        this.height=num;
+
+        this.is_answer_row = this.height==4;
+
+ 
+
+    }
+    get_weights(){
+        return this.weights;
+    }
+    setActivation_Value(){
+        const old_activation=this.activation_value;
+        const new_activation=this.get_next_activation_value();
+        this.activation_value=new_activation;
+        
+
+    }
+    get_next_activation_value(){
+        const ax = this.connections_backwards.reduce((acc,x,i)=>{
+            const v = this.weights[i] *x.activation_value;
+            console.assert(!isNaN(v),"v is nan")
+            acc+=v;
+            return acc
+        },0)
+
+
+        const new_activation=Math.tanh(ax+this.bias);
+        console.assert(!isNaN(new_activation),"new activation failing")
+
+        return  new_activation
+    }
+    propagate_change_forward(){
+
+        this.setActivation_Value();
+
+        for(let i=0;i<this.connections_forward.length;i++){
+
+            this.connections_forward[i].propagate_change_forward()
+
+        }
+
+       
+
+    }
+
+    setMutation(value){
+        this.mutation=value;
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation)))
+
+ 
+
+    }
+
+    mutateWeights(){
+
+        this.weights=this.weights.map(x=>this.mutation_rate_modification(x));
+
+    }
+
+    mutateBias(){
+
+        this.bias=this.mutation_rate_modification(this.bias);    
+
+    }
+
+    _copy(cell){
+
+        //map perfect wires
+
+        this.height=cell.height;
+
+        //map imperfect numbers
+
+        this.weights= cell.weights.map(x=>this.mutation_rate_modification(x))
+
+        this.activation_value=this.mutation_rate_modification(cell.activation_value);
+
+        this.bias=this.mutation_rate_modification(cell.bias);
+
+        this.mutation=this.mutation_rate_modification(cell.mutation)
+        this.mutate(this.mutation);
+
+    }
+    mutate(chance){
+        
+        this.mutateBias(chance);
+        this.mutateWeights(chance);   
+    }
+    mutation_rate_modification(value){
+
+        if(Math.random<this.mutation){
+
+            return value+Math.sin(this.mutation_rate-1*2);
+
+        }
+
+        return value;
+
+    }
+
+    mutation_advance(){
+
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation + this.mutation/100)))
+
+    }
+
+    mutation_reduce(){
+
+        this.mutation=Math.min(1,(Math.max(-1,this.mutation - this.mutation/100)))
+
+       
+
+    }
+    clear_all_connections(){
+        this.connections_backwards=[];
+        this.connections_forward=[];
+    }
+    init_weights(other_cells){
+        other_cells.forEach((other_cell,i)=>this.weights[i]=(Math.sin(other_cell.activation_value*this.activation_value)));
+
+    };
+    connect(other_cell){
+
+ 
+
+            this.connections_forward.push(other_cell)
+
+            other_cell.connections_backwards.push(this)
+
+
+       
+
+       
+
+ 
+
+    }
+
+}
+
+class Brain{
+
+    constructor(host,counter){
+        this.generation_number=counter||0;
+        this.matrix = []
+
+        this.host=host;
+
+        this.last_move_vec=[0,0,0,0];
+
+        this.init_matrix();
+        this.connect_cells();
+        this.init_weights();
+    }
+    init_weights(){
+        this.matrix.forEach(cell=>cell.connections_backwards.forEach(cb=>cell.weights.push(Math.random()>0.5?Math.random()*(-1):Math.random())))
+    }
+    display(){
+        //return a text pyramid - adjacency list?
+        const div = document.createElement('div');
+        div.id="brain_display_div"
+        const cell_node = (container,cell)=>{
+            const cdiv = document.createElement("div");
+            cdiv.style.display="flex";
+            cdiv.innerText = `id:${cell.id} -height:${cell.height} - a:${cell.activation_value} - gen${this.generation_number}`;
+            cdiv.style.border="solid";
+            
+            const cdiv_w_holder = document.createElement("div");
+            cdiv_w_holder.style.display="flex";
+            cdiv_w_holder.style.flexFlow="row wrap"
+            cell.weights.forEach((w,i)=>{
+                const wdiv = document.createElement('div');
+                wdiv.innerText = `#${i}--:  ${w}`
+                wdiv.style.display="flex";
+                wdiv.style.border="outset";
+                cdiv_w_holder.appendChild(wdiv);
+            })
+            cdiv.appendChild(cdiv_w_holder);
+            
+            container.appendChild(cdiv);
+
+        }
+        this.matrix.forEach(c=>cell_node(div,c))
+        return div
+    }
+    get_output(){
+
+        return this.get_output_cells().map(x=>x.activation_value);
+
+    }
+    get_hidden_layers(){
+        return this.matrix.filter(x=>x.height!=0&&!x.answer_layer)
+    }
+   
+
+    get_output_cells(){
+
+        return this.matrix.filter(x=>x.is_answer_row);
+
+ 
+
+    }
+
+    get_input_cells(){
+
+        return this.matrix.filter(x=>x.height==0);
+
+ 
+
+    }
+
+    clear_all_connections(){
+        this.matrix.forEach(cell=>cell.clear_all_connections())
+    }
+
+    init_matrix(template){
+
+        this.matrix=[];
+
+        if(template){
+
+            this.matrix =template.matrix.map((cell)=>new Cell(cell,this));
+            console.log(this.matrix.map(x=>x.activation_value));
+            this.disconnet_cell_connections();
+            }else{
+
+            const height = 5;
+
+            const max_breadth = 7;
+            const min_breadth = 4;
+            const answer_layer = 10; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
+
+            const input_layer = 25;
+
+            for(let i=0; i<height;i++){
+
+                const random_breadth = !i==0?i==height-1?answer_layer:Math.floor(Math.max(min_breadth,Math.random()*max_breadth)):input_layer;
+
+                for(let j=0;j<random_breadth;j++){
+                    const cell = new Cell(i,this);
+                    this.matrix.push(cell);
+                }
+            }   
+        }
+
+ 
+
+    }
+    connect_cells(){
+        this.matrix.forEach((cell,i,arr)=>arr.forEach((mcell,mi,marr)=>cell.height+1==mcell.height?cell.connect(mcell):null))
+    }
+    spawn_next(counter){
+
+        return new Brain(this,counter);
+
+    }
+
+    connect_host(host){
+
+        this.host=host;
+
+    }
+    disconnet_cell_connections(){
+        this.matrix.forEach(cell=>cell.clear_all_connections())
+    }
+    remove_cell(cell_index){
+
+        const cell = this.matrix.find(x=>x.height==cell_index);
+
+        const index = this.matrix.indexOf(cell);
+
+        this.matrix.forEach(c=>c.connected_to(cell)?c.disconnect(cell):null)
+
+    }
+
+    find_equivelent_cell(cell,xpos){
+
+        const row = this.matrix.filter(x=>x.height==cell.height);
+
+        const get_row=(arr,cell)=>{return arr.indexOf(cell)}
+
+        return this.matrix.find(c=>c.height==cell.height&& (get_row(c)==Math.min(xpos,row.height)))
+
+    }
+
+    run(other_nodes){
+
+        const data = this.get_data(other_nodes);
+        const cleaned_data = this.normalize(data);
+        const last_prediction = this.get_output();
+
+        const prediction = this.predict(cleaned_data,last_prediction,this.host.fitness);
+
+        this.decide_to_learn(prediction[8],prediction[9])?this.execute(prediction):null;
+
+        this.last_move_vec=this.get_move_vector(prediction);
+
+        return this.last_move_vec
+
+    }
+
+    get_move_vector(prediction){
+        return[prediction[0],prediction[1],prediction[2],prediction[3]]
+
+    }
+
+    decide_to_learn(a,b){
+
+        return a<b
+
+    }
+    normalize(data){
+        return data.map(x=>Math.tanh(x));
+    }
+    get_data(other_nodes){
+
+ 
+
+        //okay ==so data is going to come in an array
+
+        const data = [];
+
+        const range_fn =(x,rng)=> this.host.get_distance_between_edges(x)<rng;
+
+        const small_circle = other_nodes.filter(node=>range_fn(node,50)&&node.id!=this.host.id);
+
+        const mid_ring = other_nodes.filter(node=>range_fn(node,150) && !small_circle.includes(node)&&node.id!=this.host.id);
+
+ 
+
+        const fat_ring = other_nodes.filter(node=>range_fn(node,250)&&!mid_ring.includes(node)&&node.id!=this.host.id);
+
+ 
+
+        data.push(this.last_move_vec[0])
+
+        data.push(this.last_move_vec[1])
+        data.push(this.last_move_vec[2])
+        data.push(this.last_move_vec[3])
+
+        const small_c_A = small_circle.filter(x=>x.type=="A")
+
+        const small_c_B = small_circle.filter(x=>x.type=="A")
+
+        const small_c_C = small_circle.filter(x=>x.type=="A")
+
+ 
+
+        const mid_r_A = mid_ring.filter(x=>x.type=="A")
+
+        const mid_r_B = mid_ring.filter(x=>x.type=="A")
+
+        const mid_r_C = mid_ring.filter(x=>x.type=="A")
+
+ 
+
+        const fat_r_A = fat_ring.filter(x=>x.type=="A")
+
+        const far_r_B = fat_ring.filter(x=>x.type=="A")
+
+        const far_r_C = fat_ring.filter(x=>x.type=="A")
+
+ 
+
+        data.push(small_c_A.length)
+
+        data.push(small_c_B.length)
+
+        data.push(small_c_C.length)
+
+ 
+
+        data.push(mid_r_A.length)
+
+        data.push(mid_r_B.length)
+
+        data.push(mid_r_C.length)
+
+ 
+
+        data.push(fat_r_A.length)
+
+        data.push(far_r_B.length)
+
+        data.push(far_r_C.length)
+
+ 
+
+        data.push(small_c_A.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(small_c_B.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(small_c_C.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+ 
+
+        data.push(mid_r_A.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(mid_r_B.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(mid_r_C.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+ 
+
+        data.push(fat_r_A.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(far_r_B.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(far_r_C.reduce((acc,x)=>acc+=x.fitness/this.host.fitness,0))
+
+        data.push(this.host.r/100 -1*2);
+        data.push(Math.abs(this.host.x /this.host.ref.canvas.width /2));
+        data.push(Math.abs(this.host.y /this.host.ref.canvas.height/2));
+        return data;
+
+    }
+
+    predict(data){
+        console.assert(data.every(x=>!isNaN(x)),"not a number coming into predict")
+        this.set_inputs(data);
+
+        this.prop_forward();
+        const result = this.get_output();
+        console.assert(result.every(x=>!isNaN(x)), "prop forward failed? or set inputs")
+
+        return result;
+
+ 
+
+       
+
+    }
+
+    prop_forward(){
+
+        const to_propagate = this.matrix.filter(x=>x.height!=0);
+
+        //all but begining row
+
+        for(let i=0;i<to_propagate.length;i++){
+            console.assert(!isNaN(to_propagate[i].activation_value),"cell corrupted")
+            to_propagate[i].setActivation_Value();
+            console.assert(!isNaN(to_propagate[i].activation_value),"cell get_next_activation_value failing")
+        }
+
+    }
+
+    set_inputs(input_data){
+
+        const input_row=this.get_input_cells();
+
+        for(let i=0;i<input_data.length;i++){
+
+            input_row[i].activation_value=input_data[i];
+
+        }
+
+ 
+
+    }
+
+    execute(activation_values){
+
+        console.log("decided to learn!");
+
+        if(activation_values[2]>0){
+
+            this.mutateChange(activation_values[3]);
+
+        }
+
+        if(activation_values[4]>0){
+
+            this.mutateWeights(activation_values[5])
+
+        }
+
+        if(activation_values[6]>0){
+
+            this.mutateBias(activation_values[7])
+
+        }
+
+    }
+
+    mutateChange(num){
+
+        //num is fixed to 8 digits after zero;
+
+        //temp does nothing
+
+        console.log("mutate change,", num)
+
+    }
+
+ 
+
+    mutateWeights(num){
+
+        console.log("mutate weights,", num)
+        const chance = Math.random()>Math.abs(num);
+        this.matrix.forEach(cell=>cell.mutate(chance));
+ 
+
+        //temp does nothing
+
+    }
+
+    mutateBias(num){
+
+        console.log("mutate bias,", num)
+
+ 
+
+            //temp does nothing
+
+    }
+
+ 
+
+}
+
+
+
+
+
+function blend_color(){
+
+ 
+
+    let r=0;    
+
+    let g=0;
+
+    let b=0
+
+    for(let i=0;i<arguments.length-1;i++){
+
+        x=arguments[i].isLargest();
+
+        y=arguments[i].isSmallest();
+
+       
+
+        r+=x
+
+ 
+
+        g+=arguments[i].isSmallest();
+
+ 
+
+        b+=arguments[i].has_friends();
+
+       
+
+        }
+
+ 
+
+        const rf = Math.floor((r)/arguments.length)
+
+ 
+
+        const gf = Math.floor((g)/arguments.length)
+
+ 
+
+        const bf = Math.floor((b)/arguments.length)
+
+        const color_string = `rgb(${rf},${gf},${bf})`
+
+ 
+
+ 
+
+        return color_string;
+
+ 
+
+}
+
+ 
+
+const divide=(scalar,arr)=>arr.map(x=>x/scalar||0);
+
+ 
+
+const get_magnitude=(vec)=>Math.sqrt(vec.reduce((acc,item)=>acc+Math.pow(item,2),0))
+
+ 
+
+const inverse=(vec)=>(vec.map(x=>-x))
+
+ 
+
+const normalize=(thing)=>divide(get_magnitude(thing),thing);
+
+const triangle_intersect=(tri_A,tri_B)=>{
+
+    let intersection = false;
+
+    let sides_A = tri_A.map((point,i,arr)=>Side(point,arr[i%arr.length]))
+
+    let sides_B = tri_B.map((point,i,arr)=>Side(point,arr[i%arr.length]))
+
+    sides_A.forEach(sa=>{
+
+        sides_B.forEach(sb=>{
+
+            if(sides_intersect(sa,sb)){
+
+                intersection=true;
+
+            }
+
+        })
+
+    })
+
+ 
+
+    return intersection
+
+ 
+
+}
+
+const Side = (p1,p2)=>({a:p1,b:p2,distance:p1.get_distance_from_center(p2)})
+
+    const sides_intersect=(sa,sb)=>{
+
+        const det = (sa.b.x - sa.a.x) * (sb.b.y - sb.a.y) - (sb.b.x - sb.a.x ) * (sa.b.y - sa.a.y)
+
+        if(det===0) return false
+
+        const lambda =((sb.b.y-sb.a.y)* (sb.b.x - sa.a.x) + (sb.a.x - sb.b.x )*(sb.b.y - sa.a.y)) / det;
+
+        const gamma = ((sa.a.y-sa.b.y)* (sb.b.x - sa.a.x) + (sa.b.x - sa.a.x) * (sb.b.y - sa.a.y)) / det;
+
+        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+
+    }
+
+
+
+
+const board = new Board(canvas,ctx,count);
+
+ 
+
+ctx.fillStyle= "#FFFFFF"
+
+ 
+
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+ 
+
+const debug_button = document.createElement("button");
+
+ 
+
+debug_button.innerText="debug";
+
+ 
+
+debug_button.addEventListener("click",()=>{board.debug()})
+
+ 
+
+ 
+
+ 
+
+const bg_color_btn = document.createElement("button");
+
+ 
+
+ 
+
+ 
+
+bg_color_btn.innerText="background color";
+
+ 
+
+bg_color_btn.addEventListener("click",()=>{board.blank_coloring()})
+
+ 
+
+ 
+
+
+
+const catch_range_slider = document.createElement("input");
+
+    catch_range_slider.type = "range";
+
+    catch_range_slider.min=50;
+
+    catch_range_slider.max=500;
+
+    catch_range_slider.value=100;
+
+ 
+
+catch_range_slider.addEventListener("input",(e)=>{
+
+    console.log(e.target.value)
+
+    board.set_catch(Number(e.target.value))
+
+ 
+
+})
+
+ 
+
+const max_range_slider = document.createElement("input");
+
+    max_range_slider.type = "range";
+
+    max_range_slider.min=100;
+
+    max_range_slider.value=200;
+
+    max_range_slider.max=500;
+
+    max_range_slider.addEventListener("input",(e)=>{
+
+    console.log(e.target.value)
+
+ 
+
+    board.set_max_connection_length(Number(e.target.value)
+
+)})
+
+ 
+
+const sliders_container = document.createElement("div");
+
+const slider_min_div = document.createElement('div');
+
+const slider_max_div = document.createElement('div');
+
+    slider_max_div.id="smaxdiv"
+
+    slider_min_div.id="smindiv"
+
+    slider_min_div.innerText=`catch:`
+
+ 
+
+    slider_max_div.innerText=`release:`
+
+ 
+
+controls.appendChild(debug_button);
+
+ 
+
+document.body.appendChild(sliders_container);
+
+sliders_container.appendChild(slider_max_div);
+
+sliders_container.appendChild(slider_min_div);
+
+ 
+
+slider_max_div.appendChild(max_range_slider);
+
+slider_min_div.appendChild(catch_range_slider);
+
+ 
+
+document.body.appendChild(bg_color_btn);
+
+ 
+
+ 
+
+ 
+
+board.run(100);
+
+ 
+
+ 
+
+</script>
+
+
+
+</html>
