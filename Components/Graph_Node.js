@@ -30,9 +30,9 @@ class Graph_Node {
 			connections:this.connections.map(x=>({x:x.x,y:x.y,connections:x.connections.map(y=>({x:y.x,y:y.y,connections:y.connections.map(z=>({x:z.x,y:z.y}))}))})),
 			is_activated:this.is_activated=true,  
 			fitness:this.fitness,
-			last_performance:this.last_performance,
-			last_move_vec_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
-			last_move_vec_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
+			last_p:this.last_performance*100,
+			last_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
+			last_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
 			mutation_value:this.Brain.mutation_value(),
 			scream:this.Brain.get_scream(),
 		}
@@ -44,12 +44,9 @@ class Graph_Node {
         this.x=randx;
         this.y=randy;
     }
-    mutate_next(winner,champion){
-        const performance = (this.fitness/champion); //how well did it do over all;
-        this.last_performance=performance;
-
-        const mutation_guard = (this.fitness/winner); //how well did it do in the game;
-        this.Brain.mutate_next(performance,mutation_guard);
+    mutate_next(p,g){
+        this.last_performance=p;
+        this.Brain.mutate_next(p,g);
         
     
     }
@@ -68,7 +65,6 @@ class Graph_Node {
 	}
 	change_type() {
 		this.type = this.type == "A" ? "B" : this.type == "B" ? "C" : "A";
-		console.assert(["A", "B", "C"].includes(this.type), "assert failed?")
 	}
 	clear_adjacent(node) {
 		this.connections = this.connections.filter(x => x != node);
@@ -81,7 +77,6 @@ class Graph_Node {
 		return df - rt;
 	}
 	impulse_away_from(other_node) {
-		const move_vector = [0, 0];
 		const angle = this.get_angle(other_node);
 		this.x -= Math.cos(angle) * other_node.r;
 		this.y -= Math.sin(angle) * other_node.r;

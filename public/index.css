@@ -1,0 +1,70 @@
+body{
+    display:flex;
+    flex-flow: row nowrap;
+}
+.id{
+    border: solid green;
+    grid-area:id;
+}
+.node_div{
+    border:solid;
+    border-radius:35px;
+    padding:15px;
+
+}
+.nodetable{
+    overflow-y: scroll;
+    height:50vh;
+}
+.nodetable>:nth-child(even){
+    background-color: #efefdf;
+}
+.nodetable>:nth-child(odd){
+    background-color: #cfcfdf;
+}
+.connections{
+    grid-area: connections;
+}
+.mutation_value{
+    grid-area: mutation_value;
+}
+.r{
+    grid-area:r;
+
+}
+.y{
+    grid-area:y;
+
+}
+.x{
+    grid-area:x;
+
+}
+.scream{
+    grid-area:scream;
+
+}
+.type{
+    grid-area:type;
+
+}
+.fitness{
+    grid-area:fitness;
+
+}
+.is_active{
+    grid-area:is_active;
+
+}
+.last_performance{
+    grid-area:last_performance;
+
+}
+.last_move_vec_x{
+    grid-area:last_move_vec_x;
+
+}
+.last_move_vec_y{
+    grid-area:last_move_vec_y;
+
+}

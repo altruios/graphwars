@@ -94,28 +94,57 @@ class Board {
             stats_div.appendChild(div);
         }
         this.display.appendChild(stats_div)
+        const node_container_div = document.createElement('table');
+        node_container_div.classList.add("nodetable")
+        const nodes = data.nodes.sort(compare_fitness);
+
+        //make head
+        const table_header = document.createElement('tr');
+        for(const prop in nodes[0]){
+            if(prop==="is_activated") continue
+
+            const div = document.createElement('th');
+                div.innerText = prop
+                table_header.appendChild(div);
+                
+            }
+        node_container_div.appendChild(table_header);
         
 
-        const nodes = data.nodes.sort(compare_fitness);
+
+
+
+
+
+
+        //make body
         for(const node of nodes){
-            const node_div = document.createElement('div');
-            node_div.style.display="flex";
-            node_div.style.border="solid";
-            node_div.style.flexFlow="column wrap"
-            node_div.setAttribute('fitness',node.fitness)
+            const node_div = document.createElement('tr');
+  
+            node_div.classList.add("node_div")
             for(const prop in node){
-                const div = document.createElement('div');
+                if(prop==="is_activated") continue
+                const div = document.createElement('td');
+                div.classList.add(prop);
                 if(Array.isArray(node[prop])){
-                    div.innerText = `${prop}:${node[prop].length}`
-                }else{
-                    div.innerText = `${prop}:${node[prop]}`
+                    div.innerText = node[prop].length
+
+                }
+                else if(!isNaN(node[prop])&& typeof node[prop] !== "boolean"){
+
+                    div.innerText = node[prop].toFixed(2)
+                }
+                else{
+                    div.innerText =node[prop]
                 }
                 node_div.appendChild(div);
                 
             }
            
-            this.display.appendChild(node_div);
+            node_container_div.appendChild(node_div);
         }
+        this.display.appendChild(node_container_div);
+        
     }
 	blank() {
 		this.ctx.fillStyle = this.bg_color;
@@ -169,6 +198,7 @@ class Board {
 	}
 
 }
+//god why can't i just import these
 const do_to_co=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
 const do_to_pos=(val,o_r)=>do_to_co(val,o_r,[0,1]);
 const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);const compare_fitness = (a,b)=> b.fitness - a.fitness

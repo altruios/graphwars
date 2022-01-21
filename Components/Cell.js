@@ -60,7 +60,7 @@ class Cell {
 	mutateBias(chance) {
 		this.bias = this.mutation_rate_modification(this.bias, chance);
 	}
-	_copy(cell,p,g) {
+	_copy(cell) {
 
 		if (cell == undefined) {
 			console.log("nothing to copy");
@@ -71,7 +71,6 @@ class Cell {
 		this.weights = cell.weights.map(x =>x)
 		this.activation_value = cell.activation_value
 		this.bias = cell.bias;
-		this.mutate_next(p,g)
 
 	}
 	mutation_rate_modification(value, chance) {
@@ -108,9 +107,8 @@ class Cell {
     }
     mutate_bias(p,g){
         if(g>Math.random()){
-			console.log("true");
             this.bias+=this._mutate(p)
-		}else{console.log("not true",g)}
+		}
     }
 
     mutate_weights(p,g){

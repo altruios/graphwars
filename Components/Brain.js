@@ -41,11 +41,11 @@ class Brain {
 			}
 		}
 	}
-	copy_from(template,p,g) {
+	copy_from(template) {
 		this.generation_number = this.host.ref.game_count;
 
 		this.matrix.forEach((cell, i, arr) => {
-			cell._copy(template.find_equivelent_cell(cell, arr.filter(x => x.height == cell.height).indexOf(cell)),p,g)
+			cell._copy(template.find_equivelent_cell(cell, arr.filter(x => x.height == cell.height).indexOf(cell)))
 		});
 	}
 	connect_cells() {

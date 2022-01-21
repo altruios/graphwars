@@ -194,8 +194,8 @@ class Controller {
 		this.collections.forEach(node=>{
 			const p = 			node.fitness/this.best_fitness;
 			const g = 			node.fitness/((this.best_fitness+winning_node.fitness)/2);
-			console.log(p,g,node.fitness,winning_node.fitness,"pg, node then winning node fitness, best:",this.best_fitness)
-			node.Brain.copy_from(winning_node.Brain,p,g)
+			node.Brain.copy_from(winning_node.Brain)
+			node.mutate_next(p,g)
 		})
 	}
     reset_nodes_fitness(){
