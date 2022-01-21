@@ -1,6 +1,6 @@
-import { Console } from 'console';
 import Node from './Graph_Node.js'
-
+import ID from './ID.js'
+const node_ID = ID();
 class Controller {
 	constructor(count,height,width) {
 		this.node_count = count;
@@ -10,9 +10,9 @@ class Controller {
 		this.winning_nodes=[];//save of winners in last games
 		this.losing_nodes=[];//save of the worst fit nodes
 		this.stats=[];//array of 'stats' object - data from the games
-		this.best_fitness = 0;
+		this.best_fitness = 1;
 		this.stop=false;
-        this.max_render_count = 5000;
+        this.max_render_count = 400;
 		this.epoc_level=10000;
         this.catch_range = 100;
 		this.max_range = 200;
@@ -111,7 +111,7 @@ class Controller {
 		const randx = Math.floor(Math.random() * this.width);
 		const randy = Math.floor(Math.random() * this.height);
 		const randt = Math.random() > 0.3 ? "A" : Math.random() > 0.3 ? "B" : "C";
-		this.collections.push(new Node(randx, randy, randt, this));
+		this.collections.push(new Node(randx, randy, randt, this, node_ID.next().value));
 	}
 
 	find_fitest_node(nodes){
@@ -138,10 +138,10 @@ class Controller {
 			const startTime = Date.now();
 			that.run(that);
 			
-			const time_end=Date.now() - startTime
+			const time_end=pad(Date.now() - startTime,3," ")
 			
 			console.log()
-			const fitest_node = that.get_fitest_node();
+			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			process.stdout.write(`
 				render		time		count of nodes
 				${that.render_count}		${time_end}		${that.get_living_nodes().length}
@@ -150,14 +150,14 @@ class Controller {
 				${fitest_node.id}		x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.x.toFixed(0)}		
 				fitness: ${fitest_node.fitness}		
 
-				count of connections : ${fitest_node.connections.length}`);
+				count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);
 //				process.stdout.clearLine(0)
 	
 				process.stdout.moveCursor(-1000, -9)
 				process.stdout.clearLine(0)
 
 				
-			},1)
+			},30)
 		
 	}
 	timeTest(fn,args){
@@ -188,11 +188,15 @@ class Controller {
 		this.reactivate_nodes();
         this.scatter_nodes();
 		this.set_next_brains(this.champion);
-        this.mutate_nodes(winning_node.fitness,this.best_fitness);
         this.reset_nodes_fitness();
 	}
-	set_next_brains(winning_node,p,g){
-		this.collections.forEach(node=>node.Brain.set_next_brain(winning_node.Brain,p,g))
+	set_next_brains(winning_node){
+		this.collections.forEach(node=>{
+			const p = 			node.fitness/this.best_fitness;
+			const g = 			node.fitness/((this.best_fitness+winning_node.fitness)/2);
+			console.log(p,g,node.fitness,winning_node.fitness,"pg, node then winning node fitness, best:",this.best_fitness)
+			node.Brain.copy_from(winning_node.Brain,p,g)
+		})
 	}
     reset_nodes_fitness(){
         this.collections.forEach(node=>node.fitness=1)
@@ -203,10 +207,7 @@ class Controller {
     scatter_nodes(){
         this.collections.forEach(node=>node.scatter())
     }
-    mutate_nodes(winner,champion){
 
-        this.collections.forEach(node=>node.mutate_next(node.fitness/winner.fitness,winner/champion.fitness));
-    }
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
 		console.log("fitest node is:");
@@ -253,5 +254,10 @@ class Controller {
 	}
 
 }
-
+const pad = (val,pamount,what)=>{
+	while(val.length<pamount){
+		val=what+val
+	}
+	return val
+}
 export default Controller

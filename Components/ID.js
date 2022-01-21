@@ -4,4 +4,4 @@ function* ID(){
      yield id++
  }   
 }
-export default ID()
+export default ID

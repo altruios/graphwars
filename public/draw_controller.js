@@ -8,7 +8,7 @@ class Board {
 		this._draw_text_flag = true;
 		this._draw_vision_flag = false;
 		this.bg_color = "#000000";
-        this.render_speed=20;
+        this.render_speed=30;
 	}
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
@@ -45,10 +45,18 @@ class Board {
 
         });
 		living_nodes.forEach(node => {
+            const result = Math.floor(node.scream*node.fitness*node.radius);
+            const col1 = Math.floor(do_to_co(Math.sin(result),[-1,1],[55,200]));
+            const cos2 = Math.floor(do_to_co(Math.cos(result),[-1,1],[55,200]));
             this.ctx.fillStyle = this.get_node_color(node);
+            this.ctx.lineWidth=Math.abs(result);
+            this.ctx.strokeStyle=`rgba(${col1},${255},${cos2},${Math.abs(node.scream)})`
+                        
             this.ctx.beginPath();
             this.ctx.arc(node.x, node.y, node.r, 0, 2 * Math.PI)
             this.ctx.fill();
+            this.ctx.stroke();
+
             if(this._draw_text_flag==true){
                 this.ctx.fillStyle = "#00ff00"
                 this.ctx.font = '20px serif';
@@ -161,7 +169,9 @@ class Board {
 	}
 
 }
-const compare_fitness = (a,b)=> b.fitness - a.fitness
+const do_to_co=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
+const do_to_pos=(val,o_r)=>do_to_co(val,o_r,[0,1]);
+const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);const compare_fitness = (a,b)=> b.fitness - a.fitness
 function removeAllChildNodes(parent) {
     while (parent.firstChild) {
         parent.removeChild(parent.firstChild);

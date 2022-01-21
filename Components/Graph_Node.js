@@ -1,14 +1,14 @@
 import Brain from './Brain.js'
-import ID from './ID.js'
+import {do_to_co} from '../public/utilities/do_to_co.js';
 class Graph_Node {
-	constructor(x, y, type, ref) {
+	constructor(x, y, type, ref,id) {
 		if (x == NaN) {
 			console.log("x is wrong");
 		}
 		this.x = x;
 		this.y = y;
 		this.ref = ref;
-		this.id = `id-${x}-${y}`;
+		this.id = "node-"+id
 		this.r = Math.floor(Math.max(5, Math.random() * 20));
 		this.type = type;
 		this.connections = [];
@@ -33,7 +33,8 @@ class Graph_Node {
 			last_performance:this.last_performance,
 			last_move_vec_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
 			last_move_vec_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
-
+			mutation_value:this.Brain.mutation_value(),
+			scream:this.Brain.get_scream(),
 		}
     }
     scatter(){
@@ -97,7 +98,7 @@ class Graph_Node {
 		}
 	}
 	update_r() {
-		const fitness_range = MapRange(this.fitness,[1,30000],[1,10])
+		const fitness_range = do_to_co(this.fitness,[1,30000],[1,10])
 		const update_r = this.connections.length
 		this.r = fitness_range * (update_r);
         this.r=Math.max(5,this.r);
@@ -166,10 +167,9 @@ class Graph_Node {
 		const angle = Math.atan(dy, dx);
 		return angle;
 	}
+	scream(){
+		return this.Brain.get_scream();
+	}
+
 }
-
-const MapRange=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
-const Map_R_Pos=(val,o_r)=>MapRange(val,o_r,[0,1]);
-const Map_R_Real=(val,o_r)=>MapRange(val,o_r,[-1,1]);
-
 export default Graph_Node

@@ -1,6 +1,6 @@
 import ID from './ID.js'
 console.log(ID)
-
+const cellID = ID();
 
 class Cell {
 	constructor(height, brain,j) {
@@ -12,7 +12,7 @@ class Cell {
 		this.height = null;
 		this.row_index = j;
 		this.mutation = 0.1;
-		this.id = ID.next().value;
+		this.id = "cell-"+cellID.next().value;
 		this.is_answer_row = height==brain.height;
 		this.Brain = brain;
 		this.mutation_counter = 0;
@@ -66,21 +66,13 @@ class Cell {
 			console.log("nothing to copy");
 			return;
 		}
-
-
 		//map perfect wires
-		this.mutation_counter = 0;
 		//map imperfect numbers
 		this.weights = cell.weights.map(x =>x)
 		this.activation_value = cell.activation_value
 		this.bias = cell.bias;
 		this.mutate_next(p,g)
 
-	}
-	mutate(chance) {
-		this.mutateBias(chance);
-		this.mutateWeights(chance);
-		this.mutation_counter++;
 	}
 	mutation_rate_modification(value, chance) {
 		if (Math.random < chance) {
@@ -113,18 +105,20 @@ class Cell {
         this.mutate_bias(p,g)
         this.mutate_weights(p,g);
         Math.sin(this.mutation_rate)>0?this.mutation_advance():this.mutation_reduce();
-        this.mutation_counter++;
     }
     mutate_bias(p,g){
-        if(g<Math.random()){
+        if(g>Math.random()){
+			console.log("true");
             this.bias+=this._mutate(p)
-        }
+		}else{console.log("not true",g)}
     }
 
     mutate_weights(p,g){
-        this.weights.forEach(weight=>(g<Math.random())?weight+=this._mutate(p):null)
+        this.weights.forEach(weight=>(g>Math.random())?weight+=this._mutate(p):null)
     }
     _mutate(p){
+		this.mutation_counter++;
+
         return this.mutation*p
     }
 }
