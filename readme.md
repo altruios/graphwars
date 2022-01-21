@@ -13,7 +13,7 @@ npm run
 localhost:3000
 ```
 
-# what is graph wars
+# what is GRAPH WARS?
 
 ## it's a battleground:
 
