@@ -13,7 +13,7 @@ class Controller {
 		this.best_fitness = 0;
 		this.stop=false;
         this.max_render_count = 5000;
-		this.epoc_level=2000;
+		this.epoc_level=10000;
         this.catch_range = 100;
 		this.max_range = 200;
 		this.render_count = 0;
@@ -133,16 +133,31 @@ class Controller {
 		
 	}
 	engine(that){
+		console.log("starting engine \n\n")
 		setInterval(()=>{
-			console.time("runtime")
+			const startTime = Date.now();
 			that.run(that);
-			console.timeEnd("runtime")
 			
-			console.log("rendercount:",that.render_count,that.get_living_nodes().length,"living nodes total", " trig count",that.get_all_triangles(that.get_living_nodes()).length)
-			const fitest_node = that.find_fitest_node(that.get_living_nodes());
-			console.log('fittest node:',fitest_node.id," fitness",fitest_node.fitness, "pos: ",fitest_node.x.toFixed(0),fitest_node.y.toFixed(0),"connections: length ",fitest_node.connections.length)
+			const time_end=Date.now() - startTime
+			
+			console.log()
+			const fitest_node = that.get_fitest_node();
+			process.stdout.write(`
+				render		time		count of nodes
+				${that.render_count}		${time_end}		${that.get_living_nodes().length}
 
-		},25)
+				fitest node:		pos: 
+				${fitest_node.id}		x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.x.toFixed(0)}		
+				fitness: ${fitest_node.fitness}		
+
+				count of connections : ${fitest_node.connections.length}`);
+//				process.stdout.clearLine(0)
+	
+				process.stdout.moveCursor(-1000, -9)
+				process.stdout.clearLine(0)
+
+				
+			},1)
 		
 	}
 	timeTest(fn,args){
