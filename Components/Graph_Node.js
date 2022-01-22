@@ -22,13 +22,14 @@ class Graph_Node {
 	}
     no_function_copy(){
         return {
+			id:this.id,
+			win:this.win_count,
 			x:this.x, 
 			y:this.y,
-			id:this.id,
 			r:this.r,
 			type:this.type,
 			connections:this.connections.map(x=>({x:x.x,y:x.y,connections:x.connections.map(y=>({x:y.x,y:y.y,connections:y.connections.map(z=>({x:z.x,y:z.y}))}))})),
-			is_activated:this.is_activated=true,  
+			is_activated:this.is_activated,  
 			fitness:this.fitness,
 			last_p:this.last_performance*100,
 			last_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
@@ -142,6 +143,9 @@ class Graph_Node {
         this.connections.forEach(other_node=>this.disconnect(other_node));
     }
     set_is_activated(bool){
+		if(!bool){
+			this.fitness=0.1
+		}
         this.is_activated=bool;
     }
 	isLargest() {
@@ -165,6 +169,8 @@ class Graph_Node {
 	scream(){
 		return this.Brain.get_scream();
 	}
-
+	reward(){
+		this.win_count++;
+	}
 }
 export default Graph_Node

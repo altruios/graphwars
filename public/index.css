@@ -1,6 +1,6 @@
-body{
+.content{
     display:flex;
-    flex-flow: row nowrap;
+    flex-flow: column nowrap;
 }
 .id{
     border: solid green;
@@ -10,17 +10,17 @@ body{
     border:solid;
     border-radius:35px;
     padding:15px;
-
 }
+.node_div[data-color='alive']{
+    background-color: #97c797;
+}
+.node_div[data-color='dead']{
+    background-color: #af5f5f;
+}
+
 .nodetable{
     overflow-y: scroll;
     height:50vh;
-}
-.nodetable>:nth-child(even){
-    background-color: #efefdf;
-}
-.nodetable>:nth-child(odd){
-    background-color: #cfcfdf;
 }
 .connections{
     grid-area: connections;

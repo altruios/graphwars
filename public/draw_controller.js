@@ -1,6 +1,7 @@
 class Board {
-	constructor(canvas,display) {
+	constructor(canvas,display,hdisplay) {
         this.display=display;
+        this.header_display=hdisplay
 		this.height = canvas.height;
 		this.width = canvas.width;
 		this.canvas = canvas;
@@ -86,6 +87,7 @@ class Board {
         //at this point -- react?
         console.log(data);
         removeAllChildNodes(this.display);
+        removeAllChildNodes(this.header_display);
         const stats = data.game_stats;
         const stats_div = document.createElement('div');
         for(const prop in stats){
@@ -93,15 +95,21 @@ class Board {
             div.innerText = `${prop}:${stats[prop]}`
             stats_div.appendChild(div);
         }
-        this.display.appendChild(stats_div)
+        this.header_display.appendChild(stats_div)
         const node_container_div = document.createElement('table');
         node_container_div.classList.add("nodetable")
-        const nodes = data.nodes.sort(compare_fitness);
-
-        //make head
+       // const nodes = data.nodes.sort(compare_fitness).sort(compare_is_active);
+        const living_nodes = data.nodes.filter(x=>x.is_activated==true);
+        const dead_nodes = data.nodes.filter(x=>x.is_activated==false)
+        dead_nodes.forEach(x=>{x.fitness=0.1})
+        console.log(dead_nodes,"are dead nodes")
+        const nodes = [...living_nodes.sort(compare_fitness),...dead_nodes.sort(compare_fitness)]
+        //make head0
         const table_header = document.createElement('tr');
-        for(const prop in nodes[0]){
+        for(let prop in nodes[0]){
             if(prop==="is_activated") continue
+            if(prop==="connections") prop = "c"
+            if(prop==="mutation_value") prop = "m"
 
             const div = document.createElement('th');
                 div.innerText = prop
@@ -120,19 +128,21 @@ class Board {
         //make body
         for(const node of nodes){
             const node_div = document.createElement('tr');
-  
+            const color = node.is_activated==true?"alive":"dead";
+            node_div.dataset.color=color
             node_div.classList.add("node_div")
             for(const prop in node){
                 if(prop==="is_activated") continue
                 const div = document.createElement('td');
                 div.classList.add(prop);
+                div.dataset.color=color;
                 if(Array.isArray(node[prop])){
                     div.innerText = node[prop].length
 
                 }
                 else if(!isNaN(node[prop])&& typeof node[prop] !== "boolean"){
 
-                    div.innerText = node[prop].toFixed(2)
+                    div.innerText = node[prop].toFixed(1)
                 }
                 else{
                     div.innerText =node[prop]
@@ -165,7 +175,7 @@ class Board {
     async next_image(){
         const data = await this.request_data();
         this.data=data;
-        this.draw(data.nodes,data.triangles);
+        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles);
         this.render_count=data.render_count;
         this.update_display(data);
 
@@ -201,7 +211,9 @@ class Board {
 //god why can't i just import these
 const do_to_co=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r[0]) + n_r[0]
 const do_to_pos=(val,o_r)=>do_to_co(val,o_r,[0,1]);
-const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);const compare_fitness = (a,b)=> b.fitness - a.fitness
+const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);
+const compare_fitness = (a,b)=> b.fitness - a.fitness
+const compare_is_active = (a,b)=>(a.is_activated===b.is_activated)?0:a.is_activated?-1:1
 function removeAllChildNodes(parent) {
     while (parent.firstChild) {
         parent.removeChild(parent.firstChild);

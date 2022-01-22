@@ -212,7 +212,7 @@ class Controller {
 		console.log("\n\nwinner winner chicken dinner\n\n")
 		console.log("fitest node is:");
 		const fitest = this.find_fitest_node(this.get_living_nodes());
-		fitest.win_count++;
+		fitest.reward();
 		console.log(fitest.id);
 		console.log(fitest.fitness, "vs champion of:", this.best_fitness)
 		console.log("this was the fitest node: ",fitest.win_count)
@@ -229,7 +229,7 @@ class Controller {
 
 	full_json_data(){
 		const game_stats = this.get_game_stats();		
-		const nodes = this.get_living_nodes().map(x=>x.no_function_copy());
+		const nodes = this.collections.map(x=>x.no_function_copy());
 		const triangles = this.get_all_triangles(this.get_living_nodes());
 		const small_triangles = triangles.map(x=>x.map(n=>(n.no_function_copy())))
 		return {game_stats,nodes,triangles:small_triangles}	
@@ -243,13 +243,15 @@ class Controller {
 	}
 	get_game_stats(){
 		return {
-			todo:"this is a todo",
 			width:this.width,
 			height:this.height,
 			render_count:this.render_count,
 			best_fitness:this.best_fitness,
 			catch_range:this.catch_range,
-			max_range:this.max_range
+			max_range:this.max_range,
+			game_count:this.game_count,
+			living_nodes:this.get_living_nodes().length,
+			total_nodes:this.collections.length,
 		}
 	}
 

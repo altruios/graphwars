@@ -1,18 +1,27 @@
 <html>
     <link rel="stylesheet" href="./index.css">
     <body>
-        <canvas id="canvas" height="420" width="420"></canvas>
-        <div id="display"></div>
+        <header style="display: block;">GRAPH WARS</header>
+        <div id="content">
+        <div id="left">
+
+            <canvas id="canvas" height="420" width="420"></canvas>
+            <div id="hdisplay"></div>
+    
+        </div>
+        <div id="right">
+            <div id="display"></div>
+        </div>        
+    </div>
     </body>
 
     <script src="./draw_controller.js"></script>
     <script>
         const canvas = document.getElementById('canvas')
         const display = document.getElementById('display');
-        display.style.display="flex";
-        display.style.flexFlow="column nowrap"
+        const hdisplay = document.getElementById('hdisplay');
        //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/
-        const board = new Board(canvas,display)
+        const board = new Board(canvas,display,hdisplay)
         board.set_height_and_width().then(()=>board.run())
 
     </script>
