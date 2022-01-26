@@ -1,5 +1,6 @@
 import Node from './Graph_Node.js'
 import ID from './ID.js'
+import QuadTree from '../utilities/QuadTree.js'
 const node_ID = ID();
 class Controller {
 	constructor(count,height,width) {
@@ -10,16 +11,20 @@ class Controller {
 		this.winning_nodes=[];//save of winners in last games
 		this.losing_nodes=[];//save of the worst fit nodes
 		this.stats=[];//array of 'stats' object - data from the games
+		this.quadTree = new QuadTree(0,0,this.width,this.height)
 		this.best_fitness = 1;
 		this.stop=false;
-        this.max_render_count = 400;
-		this.epoc_level=10000;
+        this.max_render_count = 5000;
+		this.epoc_level=910000;
         this.catch_range = 100;
+		this.render_speed=1;
 		this.max_range = 200;
 		this.render_count = 0;
 		this.game_count = 0;
 		this.brain_template = null;
 		this.fitest_node=null;
+		this.last_average_fitness=1;
+		this.best_average_fitness=1;
         this.init_collection();
 		this.run.bind(this);
 		}
@@ -36,10 +41,15 @@ class Controller {
 		this.max_range = num;
 	}
 	step(living_nodes) {
+		this.update_quad_tree(living_nodes);
 		this.update_collections(living_nodes);
 	}
+	update_quad_tree(living_nodes){
+		this.quadTree = new QuadTree(0,0,this.width,this.height)
+		living_nodes.forEach(n=>this.quadTree.insert(n));
+	}
 	update_collections(livingNodes) {
-		livingNodes.forEach(node => node.update(livingNodes, this.width, this.height, this.catch_range, this.max_range))
+		livingNodes.forEach(node => node.update(this.width, this.height, this.catch_range, this.max_range))
 		this.handle_eat(livingNodes);
 		livingNodes.forEach(node => !node.is_activated ? node.deactivate() : null)
 	}
@@ -131,7 +141,7 @@ class Controller {
 		this.step(living_nodes);
 		this.render_count++;
 		
-	}
+	} 
 	engine(that){
 		console.log("starting engine \n\n")
 		setInterval(()=>{
@@ -140,25 +150,32 @@ class Controller {
 			
 			const time_end=pad(Date.now() - startTime,3," ")
 			
-			console.log()
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
+			
 			process.stdout.write(`
 				render		time		count of nodes
-				${that.render_count}		${time_end}		${that.get_living_nodes().length}
+				${that.render_count}		${pad(time_end,3,"0")}		${that.get_living_nodes().length}
 
 				fitest node:		pos: 
-				${fitest_node.id}		x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.x.toFixed(0)}		
-				fitness: ${fitest_node.fitness}		
+				${fitest_node.id}		x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
+				
+				current average fitness:	best average fitness:
+				${that.get_average_fitness().toFixed(4)}	${that.best_average_fitness.toFixed(4)}
 
-				count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);
-//				process.stdout.clearLine(0)
-	
-				process.stdout.moveCursor(-1000, -9)
+				fitness: ${fitest_node.fitness}		
+				count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);	
+				process.stdout.moveCursor(-1000, -11)
 				process.stdout.clearLine(0)
 
 				
-			},30)
+			},this.render_speed)
 		
+	}
+	get_average_fitness(){
+		const sum = this.collections.reduce((acc,item)=>{acc+=item.fitness;return acc},0)
+		const total = this.collections.length;
+		const average = sum/total;
+		return average
 	}
 	timeTest(fn,args){
 		console.time(`time of: ${fn.name}`);
@@ -182,21 +199,30 @@ class Controller {
 	new_game(winning_node) {
 		this.render_count = 0;
 		this.game_count++;
-		const fitness_win = winning_node.fitness > this.best_fitness;
+		const fitness_win = winning_node.fitness >= this.best_fitness;
+		const average_fitness = this.get_average_fitness();
+		this.last_average_fitness=average_fitness;
+		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
 		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
 		this.champion = fitness_win ? winning_node:this.champion;
 		this.reactivate_nodes();
         this.scatter_nodes();
-		this.set_next_brains(this.champion);
+		this.set_next_brains(winning_node);
         this.reset_nodes_fitness();
 	}
 	set_next_brains(winning_node){
-		this.collections.forEach(node=>{
+
+
+		const startTime = Date.now();
+		
+				this.collections.forEach(node=>{
 			const p = 			node.fitness/this.best_fitness;
 			const g = 			node.fitness/((this.best_fitness+winning_node.fitness)/2);
-			node.Brain.copy_from(winning_node.Brain)
+			node.Brain.become_child_of(winning_node.Brain,this.champion.Brain);
 			node.mutate_next(p,g)
 		})
+		const time_end=pad(Date.now() - startTime,3," ")
+		console.log(time_end,"was time to set next brains:!\n\n\n\n\n\n\n\n")
 	}
     reset_nodes_fitness(){
         this.collections.forEach(node=>node.fitness=1)
@@ -232,6 +258,10 @@ class Controller {
 		const nodes = this.collections.map(x=>x.no_function_copy());
 		const triangles = this.get_all_triangles(this.get_living_nodes());
 		const small_triangles = triangles.map(x=>x.map(n=>(n.no_function_copy())))
+
+
+	//	this.update_quad_tree(this.get_living_nodes())
+	//	const quad_tree = this.quadTree.no_function_copy();
 		return {game_stats,nodes,triangles:small_triangles}	
 	}
 	get_selected_node(selected_id){

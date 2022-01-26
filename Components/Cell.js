@@ -73,6 +73,11 @@ class Cell {
 		this.bias = cell.bias;
 
 	}
+	_child(cell,ocell,chosen){
+		const main_doner = chosen==1?cell:ocell;
+		this.bias = (cell.bias+ocell.bias)/2
+		this.weights.map((x,i)=>i%2==0?(cell.weights[i]+ocell.weights[i])/2:main_doner.weights[i])
+	}
 	mutation_rate_modification(value, chance) {
 		if (Math.random < chance) {
 			return this.between_neg1_and_1(this.mutation+value); //pos or neg mutation -1,1

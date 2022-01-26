@@ -14,7 +14,7 @@ class Board {
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
-	draw(living_nodes,triangles) {
+	draw(living_nodes,triangles,quad_tree) {
         this.blank();
 
 		triangles.forEach(trig => {
@@ -82,6 +82,20 @@ class Board {
     get_fitest_node(nodes){
         return nodes.sort((a,b) => b.fitness-a.fitness)[0]
 
+    }
+    draw_quad_tree(tree,dept){
+        if(!tree)   return
+        if(!dept)   dept=0;
+        if(dept>255)dept=255
+
+        this.ctx.strokeStyle=`rgb(${dept},${255-dept},${dept})`;
+        this.ctx.lineWidth=5;
+        this.ctx.strokeRect(tree.x,tree.y,tree.w,tree.h);
+        this.ctx.stroke();
+        this.draw_quad_tree(tree.tl,dept+40)
+        this.draw_quad_tree(tree.tr,dept+40)
+        this.draw_quad_tree(tree.bl,dept+40)
+        this.draw_quad_tree(tree.br,dept+40)
     }
     update_display(data){
         //at this point -- react?
@@ -176,8 +190,9 @@ class Board {
         const data = await this.request_data();
         this.data=data;
         this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles);
+     //   this.draw_quad_tree(data.quad_tree)
         this.render_count=data.render_count;
-        this.update_display(data);
+     //   this.update_display(data);
 
     }
 	request_data() {

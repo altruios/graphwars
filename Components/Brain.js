@@ -1,5 +1,5 @@
 import Cell from './Cell.js'
-import {do_to_real} from '../public/utilities/do_to_co.js';
+import {do_to_real} from '../utilities/do_to_co.js';
 class Brain {
 	constructor(host, template) {
 		this.generation_number = 0;
@@ -40,6 +40,9 @@ class Brain {
 				this.matrix.push(cell);
 			}
 		}
+	}
+	become_child_of(brain,other_brain){
+		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i],i))
 	}
 	copy_from(template) {
 		this.generation_number = this.host.ref.game_count;

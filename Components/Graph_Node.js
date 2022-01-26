@@ -1,5 +1,5 @@
 import Brain from './Brain.js'
-import {do_to_co} from '../public/utilities/do_to_co.js';
+import {do_to_co} from '../utilities/do_to_co.js';
 class Graph_Node {
 	constructor(x, y, type, ref,id) {
 		if (x == NaN) {
@@ -115,6 +115,7 @@ class Graph_Node {
 		}
 	}
 	make_connections(all_nodes, node_catch_range) {
+		
 		const not_connected_yet = all_nodes.filter(x => this.connections.every(y => y.id != x.id) && x.id != this.id);
 		const close_enough = not_connected_yet.filter(other_node => this.get_distance_from_center(other_node) < node_catch_range ? true : false)
 		close_enough.forEach(n => this.connect(n));
@@ -130,13 +131,14 @@ class Graph_Node {
 		other_node.connections = other_node.connections.filter(x => x != this);
 		this.connections = this.connections.filter(x => x != other_node);
 	}
-	update(all_nodes, width, height, cr, mr) {
-            this.make_connections(all_nodes, cr);
-            this.move(all_nodes);
-            this.break_connections(mr);
-            this.update_r();
-            this.update_color();
-            this.boundries(width, height);
+	update(width, height, cr, mr) {
+        const close_nodes = this.ref.quadTree.query(this);    
+		this.make_connections(close_nodes, cr);
+        this.move(this.ref.get_living_nodes());
+        this.break_connections(mr);
+        this.update_r();
+        this.update_color();
+        this.boundries(width, height);
         
     }
     deactivate(){
