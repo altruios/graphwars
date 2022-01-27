@@ -22,5 +22,5 @@ app.get("/get_current_data",function(req,res){
 app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
   })
-game.engine(game);
+//game.engine(game);
 
