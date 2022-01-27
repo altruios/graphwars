@@ -153,17 +153,17 @@ class Controller {
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			
 			process.stdout.write(`
-				render		time		count of nodes
-				${that.render_count}		${pad(time_end,3,"0")}		${that.get_living_nodes().length}
+render		time		count of nodes
+${that.render_count}		${pad(time_end,3,"0")}		${that.get_living_nodes().length}
 
-				fitest node:		pos: 
-				${fitest_node.id}		x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
+fitest node:${pad("",3,"	")}pos: 
+${fitest_node.id}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
 				
-				current average fitness:	best average fitness:
-				${that.get_average_fitness().toFixed(4)}	${that.best_average_fitness.toFixed(4)}
+current average fitness:${pad("",2,"	")}best average fitness:${pad("",2,"	")}last average fitness:
+${that.get_average_fitness().toFixed(21)}${pad("",3,"	")}${that.best_average_fitness.toFixed(18)}${pad("",2,"	")}${that.last_average_fitness.toFixed(18)}
 
-				fitness: ${fitest_node.fitness}		
-				count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);	
+fitness: ${fitest_node.fitness}		
+count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);	
 				process.stdout.moveCursor(-1000, -11)
 				process.stdout.clearLine(0)
 

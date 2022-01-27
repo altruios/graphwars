@@ -1,0 +1,229 @@
+
+
+<html>
+
+    <body>
+
+        <canvas height="500" width="500" id="canvas"></canvas>
+        <div id="display"></div>
+    </body>
+
+<script>
+const display = document.getElementById('display');
+
+function *ID(){
+    let i = 0;
+    while(true){
+        yield i++
+    }
+}
+const IDgen = ID();
+
+class QuadTree{
+    constructor(x,y,w,h,is_root){
+        this.capacity=4;
+        this.points=[];
+        this.divided=false;
+        this.x=x;
+        this.y=y;
+        this.h=h;
+        this.w=w;
+        this.id =IDgen.next().value;
+        this.tl = null;
+        this.tr = null;
+        this.bl = null;
+        this.br = null;
+    }
+    no_function_copy(){
+        return {
+
+            capacity:this.capacity,
+          //  points:this.points.map(x=>x.no_function_copy()),
+            divided:this.divided,
+            x:this.x,
+            y:this.y,
+            h:this.h,
+            w:this.w,
+            tl:this.tl?.no_function_copy(),
+            tr:this.tr?.no_function_copy(),
+            bl:this.bl?.no_function_copy(),
+            br:this.br?.no_function_copy(),
+        }
+
+
+
+    }
+    contains(point){
+        return (
+            point.x >= this.x - this.w &&
+            point.x <= this.x + this.w &&
+            point.y >= this.y - this.h &&
+            point.y <= this.y + this.h);
+    }
+    insert(point){
+        if(!this.contains(point)){
+            console.log(this.x,this.y,this.h,this.w,"does not contain,",point.x,point.y)
+            return false;
+        }
+        if(this.points.length<this.capacity){
+            this.points.push(point)
+            return true
+        }else{
+            if(this.divided==false){
+                this.subdivide(point)
+                this.divided=true;
+            }
+            if(this.tl.insert(point)){
+                return true
+            }else if(this.tr.insert(point)){
+                return true
+            }else if(this.bl.insert(point)){
+                return true;
+            }
+            else if(this.br.insert(point)){
+                return true;
+            }else {
+                return false
+            }
+        }
+    }
+    subdivide(point){
+        const x=this.x;
+        const y=this.y;
+        const w=this.w/2;
+        const h=this.h/2;
+        this.tl = new QuadTree(x,y,w,h);
+        this.tr = new QuadTree(x+w,y,w,h)
+        this.bl = new QuadTree(x,y+h,w,h)
+        this.br = new QuadTree(x+w,y+h,w,h)
+         
+    }
+    query(point,found){
+        //x y r
+        if(!found){
+            found=[];
+        }
+
+        if(!this.intersects(point)){
+            return found
+        }else{
+             for(let p of this.points){
+                 if(point.get_distance_from_center(p)<=point.ref.catch_range){
+                    //if you are within the distance of catching a point - 
+                    found.push(p);
+
+                }
+             }
+        }
+        if(this.divided){
+            if(this.intersects(point)){
+                this.tl.query(point,found);
+                this.tr.query(point,found);
+                this.bl.query(point,found);
+                this.br.query(point,found);
+                return found
+            }
+        }
+
+        return found;
+    }
+    intersects(point){
+        const size=point.ref.catch_range
+        const px = point.x - size/2;
+        const py = point.y - size/2;
+        return !( 
+            px - size > this.x + this.w ||
+            px + size < this.x - this.w || 
+            py - size > this.y + this.h ||
+            py + size < this.y - this.h)
+    }
+    show(ctx){
+        ctx.strokeStyle="#00ff00"
+        ctx.strokeRect(this.x,this.y,this.w,this.h);
+        this.points.forEach(point=>point.show(ctx))
+        if(this.tl)this.tl.show(ctx)
+        if(this.tr)this.tr.show(ctx)
+        if(this.bl)this.bl.show(ctx)
+        if(this.br)this.br.show(ctx)
+    }
+}
+
+class Point{
+    constructor(x,y){
+    this.x=x;
+    this.y=y;
+    this.ref={catch_range:100}
+    }
+    show(ctx,color){
+        ctx.strokeStyle=color;
+        ctx.strokeRect(this.x,this.y,1,1);
+    }
+    get_distance_from_center(other_node) {
+		const dx = (other_node.x - this.x);
+		const dy = (other_node.y - this.y);
+		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+		return df
+	}
+}
+const canvas = document.getElementById('canvas');
+const qt = new QuadTree(0,0,canvas.width,canvas.height,true);
+
+const ctx = canvas.getContext("2d");
+ctx.fillStyle="#000000";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+
+for(let i=0;i<1100;i++){
+    const x = Math.random()*canvas.width;
+    const y = Math.random()*canvas.height;
+    const point = new Point(x,y);
+    qt.insert(point);
+}
+
+
+const circle = {
+    x:0,
+    y:0,
+    r:100,
+    ref:{catch_range:100},
+    get_distance_from_center:(other_node)=> {
+		const dx = (other_node.x - this.x);
+		const dy = (other_node.y - this.y);
+		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+		return df
+	}
+}
+canvas.addEventListener('mousemove',(e)=>{
+    circle.x=e.x
+    circle.y=e.y
+    ctx.beginPath();
+    ctx.arc(circle.x,circle.y,circle.r,0,2*Math.PI);
+    ctx.stroke();
+
+
+    display.innerText= `x:${circle.x},y":${circle.y}`
+})
+window.setInterval(()=>{
+    
+    ctx.fillStyle="#000000"
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    qt.show(ctx,"#00ff00");
+    ctx.strokeStyle="#ff0000"
+    ctx.beginPath();
+    ctx.arc(circle.x,circle.y,circle.r,0,2*Math.PI);
+    ctx.stroke();
+    
+    const found_points = qt.query(new Point(circle.x,circle.y));
+    console.log(found_points,"are points");
+    found_points.forEach(p=>{p.show(ctx,"#ff0000");console.log("found length.",found_points.length)})
+},30)
+
+
+
+</script>
+
+
+
+</html>
+
+ 

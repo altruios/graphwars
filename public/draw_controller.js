@@ -190,7 +190,7 @@ class Board {
         const data = await this.request_data();
         this.data=data;
         this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles);
-     //   this.draw_quad_tree(data.quad_tree)
+        this.draw_quad_tree(data.quad_tree)
         this.render_count=data.render_count;
      //   this.update_display(data);
 
