@@ -132,14 +132,19 @@ class Graph_Node {
 		this.connections = this.connections.filter(x => x != other_node);
 	}
 	update(width, height, cr, mr) {
-        const close_nodes = this.ref.quadTree.query(this);    
+        const close_nodes = this.ref.quadTree.find(this);    
+
 		this.make_connections(close_nodes, cr);
-        this.move(this.ref.get_living_nodes());
+		//console.time("update_cell");
+        this.move(close_nodes);
+
+		//console.timeEnd("update_cell");
+
         this.break_connections(mr);
         this.update_r();
         this.update_color();
         this.boundries(width, height);
-        
+
     }
     deactivate(){
         this.connections.forEach(other_node=>this.disconnect(other_node));

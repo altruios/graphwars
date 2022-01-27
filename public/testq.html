@@ -53,12 +53,13 @@ class QuadTree{
 
 
     }
-    contains(point){
+    contains(point,range){
+        if(!range) range = this;
         return (
-            point.x >= this.x - this.w &&
-            point.x <= this.x + this.w &&
-            point.y >= this.y - this.h &&
-            point.y <= this.y + this.h);
+            point.x >= range.x  &&
+            point.x <= range.x + range.w &&
+            point.y >= range.y  &&
+            point.y <= range.y + range.h);
     }
     insert(point){
         if(!this.contains(point)){
@@ -98,44 +99,58 @@ class QuadTree{
         this.br = new QuadTree(x+w,y+h,w,h)
          
     }
-    query(point,found){
+    query(range,found){
         //x y r
         if(!found){
             found=[];
         }
 
-        if(!this.intersects(point)){
+        if(!this.overlaps(range)){
             return found
         }else{
              for(let p of this.points){
-                 if(point.get_distance_from_center(p)<=point.ref.catch_range){
-                    //if you are within the distance of catching a point - 
+                 if(this.contains(p,range)){
+                     console.log(p);
                     found.push(p);
-
                 }
-             }
+                else{
+                    console.log(p.x,p.y)
+                }
+            }
         }
         if(this.divided){
-            if(this.intersects(point)){
-                this.tl.query(point,found);
-                this.tr.query(point,found);
-                this.bl.query(point,found);
-                this.br.query(point,found);
+            if(this.overlaps(range)){
+                this.tl.query(range,found);
+                this.tr.query(range,found);
+                this.bl.query(range,found);
+                this.br.query(range,found);
                 return found
             }
         }
 
         return found;
     }
-    intersects(point){
-        const size=point.ref.catch_range
-        const px = point.x - size/2;
-        const py = point.y - size/2;
+    valueInRange( value, min, max){ 
+        return (value >= min) && (value <= max); 
+    }
+    intersects(range){
+        const ph=range.h
+        const pw=range.w;
+        const px = range.x 
+        const py = range.y 
+        console.log(range,px,py,ph,pw,"should be rect corner for point,")
         return !( 
-            px - size > this.x + this.w ||
-            px + size < this.x - this.w || 
-            py - size > this.y + this.h ||
-            py + size < this.y - this.h)
+            px - pw > this.x + this.w ||
+            px + pw < this.x - this.w || 
+            py - ph > this.y + this.h ||
+            py + ph < this.y - this.h)
+    }
+    overlaps(range){
+        const xOverlap = this.valueInRange(range.x, this.x, this.x + this.w) ||
+        this.valueInRange(this.x, range.x, range.x + range.w);
+        const yOverlap = this.valueInRange(range.y, this.y, this.y + this.h) ||
+        this.valueInRange(this.y, range.y, range.y + range.h);
+        return xOverlap&&yOverlap
     }
     show(ctx){
         ctx.strokeStyle="#00ff00"
@@ -147,7 +162,6 @@ class QuadTree{
         if(this.br)this.br.show(ctx)
     }
 }
-
 class Point{
     constructor(x,y){
     this.x=x;
@@ -158,12 +172,6 @@ class Point{
         ctx.strokeStyle=color;
         ctx.strokeRect(this.x,this.y,1,1);
     }
-    get_distance_from_center(other_node) {
-		const dx = (other_node.x - this.x);
-		const dy = (other_node.y - this.y);
-		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
-		return df
-	}
 }
 const canvas = document.getElementById('canvas');
 const qt = new QuadTree(0,0,canvas.width,canvas.height,true);
@@ -181,27 +189,31 @@ for(let i=0;i<1100;i++){
 }
 
 
-const circle = {
+const rect = {
     x:0,
     y:0,
-    r:100,
-    ref:{catch_range:100},
+    h:100,
+    w:100,
     get_distance_from_center:(other_node)=> {
-		const dx = (other_node.x - this.x);
-		const dy = (other_node.y - this.y);
+		const dx = (other_node.x - rect.x);
+		const dy = (other_node.y - rect.y);
 		const df = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
 		return df
-	}
+	},
+    contains:(point,range)=>{
+        return (
+            point.x >= range.x  &&
+            point.x <= range.x + rrangeect.w &&
+            point.y >= range.y  &&
+            point.y <= range.y + range.h);
+    }
 }
 canvas.addEventListener('mousemove',(e)=>{
-    circle.x=e.x
-    circle.y=e.y
-    ctx.beginPath();
-    ctx.arc(circle.x,circle.y,circle.r,0,2*Math.PI);
-    ctx.stroke();
+    rect.x=e.x-rect.w/2
+    rect.y=e.y-rect.h/2
 
 
-    display.innerText= `x:${circle.x},y":${circle.y}`
+    display.innerText= `x:${rect.x},y":${rect.y}`
 })
 window.setInterval(()=>{
     
@@ -210,12 +222,12 @@ window.setInterval(()=>{
     qt.show(ctx,"#00ff00");
     ctx.strokeStyle="#ff0000"
     ctx.beginPath();
-    ctx.arc(circle.x,circle.y,circle.r,0,2*Math.PI);
+    ctx.strokeRect(rect.x,rect.y,rect.w,rect.h);
     ctx.stroke();
+
     
-    const found_points = qt.query(new Point(circle.x,circle.y));
-    console.log(found_points,"are points");
-    found_points.forEach(p=>{p.show(ctx,"#ff0000");console.log("found length.",found_points.length)})
+    const found_points = qt.query(rect);
+    found_points.forEach(p=>{p.show(ctx,"#ff0000")})
 },30)
 
 

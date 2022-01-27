@@ -1,6 +1,6 @@
 import express from 'express'
 import Controller from './Components/Controller.js'
-const game = new Controller(4000,1080,1920);
+const game = new Controller(5000,8080,8920);
 
 
 
@@ -22,5 +22,5 @@ app.get("/get_current_data",function(req,res){
 app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
   })
-//game.engine(game);
+game.engine(game);
 

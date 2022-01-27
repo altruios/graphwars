@@ -45,8 +45,7 @@ class Controller {
 		this.update_collections(living_nodes);
 	}
 	update_quad_tree(living_nodes){
-		this.quadTree = new QuadTree(0,0,this.width,this.height)
-		living_nodes.forEach(n=>this.quadTree.insert(n));
+		this.quadTree.reset_graph(living_nodes);
 	}
 	update_collections(livingNodes) {
 		livingNodes.forEach(node => node.update(this.width, this.height, this.catch_range, this.max_range))
@@ -153,8 +152,8 @@ class Controller {
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			
 			process.stdout.write(`
-render		time		count of nodes
-${that.render_count}		${pad(time_end,3,"0")}		${that.get_living_nodes().length}
+render count ${pad("",2,"	")} render time${pad("",2,"	")}count of nodes
+${pad(that.render_count,4,"0")}${pad("",2,"	")}${pad(time_end,3,"0")}${pad("",2,"	")}${that.get_living_nodes().length}
 
 fitest node:${pad("",3,"	")}pos: 
 ${fitest_node.id}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
@@ -287,6 +286,7 @@ count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`)
 
 }
 const pad = (val,pamount,what)=>{
+	val=String(val)
 	while(val.length<pamount){
 		val=what+val
 	}
