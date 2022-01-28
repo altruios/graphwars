@@ -21,7 +21,8 @@ class Brain {
             mutation_value:this.mutation_value(),
             height:this.height,
             last_move_vec:this.last_move_vec,
-            last_fitness:this.last_fitness,     
+            last_fitness:this.last_fitness,
+			matrix:this.matrix.map(c=>c.no_function_copy())     
         }
     }
     calc_input_row_count(){
@@ -36,20 +37,20 @@ class Brain {
 		for (let i = 0; i < height; i++) {
 			const layer_breadth = !i == 0 ? i == height - 1 ? answer_layer : breadth : input_layer;
 			for (let j = 0; j < layer_breadth; j++) {
-				const cell = new Cell(i, this,j);
+				const cell = new Cell(i, this, j);
 				this.matrix.push(cell);
 			}
 		}
 	}
 	become_child_of(brain,other_brain){
+		this.generation_number = this.host.ref.game_count;
+
 		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i],i))
 	}
 	copy_from(template) {
 		this.generation_number = this.host.ref.game_count;
-
-		this.matrix.forEach((cell, i, arr) => {
-			cell._copy(template.find_equivelent_cell(cell, arr.filter(x => x.height == cell.height).indexOf(cell)))
-		});
+		const column = template.matrix.filter(cell=> cell.height == this.height);
+		this.matrix.forEach((cell) => cell._copy(column.find(x=>x.row_index==cell.row_index)));
 	}
 	connect_cells() {
 		this.matrix.forEach((cell, i, arr) => arr.forEach((mcell, mi, marr) => cell.height + 1 == mcell.height ? cell.connect(mcell) : null))

@@ -23,7 +23,7 @@ class Cell {
 			id:this.id.toString(),
 			connections_forward:this.connections_forward.map(x=>x.id.toString()),
 			connections_backwards:this.connections_backwards.map(x=>x.id.toString()),
-			weights:this.weights,
+			weights:this.weights.map(x=>x),
 			activation_value:this.activation_value,
 			bias:this.bias,
 			mutation:this.mutation,
@@ -63,20 +63,19 @@ class Cell {
 	_copy(cell) {
 
 		if (cell == undefined) {
-			console.log("nothing to copy");
 			return;
 		}
-		//map perfect wires
-		//map imperfect numbers
 		this.weights = cell.weights.map(x =>x)
 		this.activation_value = cell.activation_value
 		this.bias = cell.bias;
 
 	}
 	_child(cell,ocell,chosen){
-		const main_doner = chosen==1?cell:ocell;
-		this.bias = (cell.bias+ocell.bias)/2
-		this.weights.map((x,i)=>i%2==0?(cell.weights[i]+ocell.weights[i])/2:main_doner.weights[i])
+		const doner_bool = chosen%2==0
+		const main_doner = doner_bool?cell:ocell;
+		const secondary_doner = doner_bool?ocell:cell;
+		this.bias = (cell.bias+ocell.bias)/2 //bias is pure average
+		this.weights.map((x,i)=>i%2==0?(main_doner.weights[i]):secondary_doner.weights[i])
 	}
 	mutation_rate_modification(value, chance) {
 		if (Math.random < chance) {

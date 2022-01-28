@@ -36,6 +36,7 @@ class Graph_Node {
 			last_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
 			mutation_value:this.Brain.mutation_value(),
 			scream:this.Brain.get_scream(),
+			Brain:this.Brain.no_function_copy()
 		}
     }
     scatter(){
@@ -89,7 +90,6 @@ class Graph_Node {
 		if (!this.y || !this.x) {
 			console.log(result, "is result from failed brain");
 			console.log(this.x, this.y, "are not numbers?", " brain below");
-			console.log(this.Brain);
 			console.error("brain malfunction");
 		}
 	}

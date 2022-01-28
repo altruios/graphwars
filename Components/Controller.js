@@ -33,6 +33,7 @@ class Controller {
 			this.add_node()
 		}
 		this.fitest_node=this.collections[0]
+		this.champion=this.collections[0].no_function_copy();
 	}
 	set_catch(num) {
 		this.catch_range = num;
@@ -202,22 +203,23 @@ ${pad(fitest_node.connections.length.toString(),3," ")}`);
 		this.last_average_fitness=average_fitness;
 		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
 		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
-		this.champion = fitness_win ? winning_node:this.champion;
+		this.champion = fitness_win ? winning_node.no_function_copy():this.champion;
 		this.reactivate_nodes();
         this.scatter_nodes();
 		this.set_next_brains(winning_node);
         this.reset_nodes_fitness();
 	}
 	set_next_brains(winning_node){
-
-
 		const startTime = Date.now();
-		
-				this.collections.forEach(node=>{
-			const p = 			node.fitness/this.best_fitness;
-			const g = 			node.fitness/((this.best_fitness+winning_node.fitness)/2);
-			node.Brain.become_child_of(winning_node.Brain,this.champion.Brain);
-			node.mutate_next(p,g)
+		this.collections.forEach(node=>{
+			if(!node.id==winning_node.id){ // we skip the winning node - ensuring that it stays the same
+				const p = node.fitness/this.best_fitness;
+				const g = node.fitness/((this.best_fitness+winning_node.fitness)/2);
+				node.Brain.become_child_of(winning_node.Brain,this.champion.Brain);
+				node.mutate_next(p,g)
+			}else{
+				node.Brain.copy_from(this.champion.Brain);
+			}
 		})
 		const time_end=pad(Date.now() - startTime,3," ")
 		console.log(time_end,"was time to set next brains:!\n\n\n\n\n\n\n\n")
