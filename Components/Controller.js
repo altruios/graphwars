@@ -152,17 +152,17 @@ class Controller {
 			process.stdout.moveCursor(-1000, -11)
 			process.stdout.clearScreenDown()
 			process.stdout.write(`
-render count${pad("",2,"	")}render time${pad("",2,"	")}count of nodes${pad("",2,"	")}game_count
-${pad(that.render_count,12," ")}${pad("",2,"	")}${pad(time_end,9," ")}ms${pad("",2,"	")}${pad(that.get_living_nodes().length,14," ")}${pad("",3,"	")}${that.game_count.toString()}
+render count:${pad("",2,"	")}render time:${pad("",2,"	")}count of nodes:${pad("",2,"	")}game_count:
+${pad(that.render_count,12," ")}${pad("",2,"	")}${pad(time_end,9," ")}ms${pad("",2,"	")}${pad(that.get_living_nodes().length,14," ")}${pad("",2,"	")}${pad(that.game_count.toString(),10," ")}
 
-fitest node:${pad("",2,"	")}pos: 
-${pad(fitest_node.id,12," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
+fitest node:${pad("",2,"	")}position:${pad("",2,"	")}${pad('fitness:',15,' ')}${pad("",2,"	")}${pad("connections:",15," ")} 
+${pad(fitest_node.id,12," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}${pad("",2,"	")}${pad(fitest_node.fitness,14," ")}${pad("",2,"	")}${pad(fitest_node.connections.length.toString(),14," ")}
 				
-current average fitness:${pad("",2,"	")}best average fitness:${pad("",2,"	")}last average fitness:
-${pad(that.get_average_fitness().toFixed(2),21,"0")}${pad("",3,"	")}${that.best_average_fitness.toFixed(18)}${pad("",2,"	")}${that.last_average_fitness.toFixed(18)}
+average:${pad("",2,"	")}best average:${pad("",2,"	")}last average:
+${pad(that.get_average_fitness().toFixed(2),7," ")}${pad("",3,"	")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",2,"	")}${pad(that.last_average_fitness.toFixed(2),12," ")}
 
-fitness: ${fitest_node.fitness}		
-count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);	
+ ${fitest_node.fitness}		
+${pad(fitest_node.connections.length.toString(),3," ")}`);	
 				
 
 				
