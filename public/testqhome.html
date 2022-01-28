@@ -24,13 +24,24 @@ function *ID(){
 const IDgen = ID();
 
 
-function *color(){
-    let ci=0;
-    const color= [142,150,25];
-    while(true){
-
-        yield `rgb(${color[0]},${color[1]},${color[2]})` 
-    }
+const color_grid = [
+[0,255,255],
+[114,132,0],
+[12,155,121],
+[5,10,24],
+[115,156,20],
+[255,255,255],
+[39,69,120],
+[0,10,10],
+[120,155,50],
+[90,180,245],
+]
+function color_string_get(i){
+    const c_row = color_get(i);
+    return `rgba(${c_row[0]},${c_row[1]},${c_row[2]},0.06125)`
+}
+function color_get(i){
+    return color_grid[i%color_grid.length]
 }
 
 
@@ -118,17 +129,19 @@ class QuadTree{
         this.br = new QuadTree(x+w,y+h,w,h,l,this.type+">br")
          
     }
-    find(point){
-        const range = {
-            x:point.x-point.r,
-            y:point.y-point.r,
-            h:point.r,
-            w:point.r
+    get_range(point,range){
+        if(!range)range=1;
+        return {
+            x:point.x-range/2,
+            y:point.y-range/2,
+            h:range,
+            w:range
         }
-        return this.query(range);
     }
+    find(point,range){
+        return this.query(this.get_range(point,range));
+    }    
     query(range,found){
-
             //x y r
         if(!found){
             found=[];
@@ -139,12 +152,9 @@ class QuadTree{
         }else{
              for(let p of this.points){
                  if(this.contains(p,range)){
-                     console.log(p);
                     found.push(p);
                 }
-                else{
-                    console.log(p.x,p.y)
-                }
+         
             }
         }
         if(this.divided){
@@ -181,20 +191,7 @@ class QuadTree{
         this.valueInRange(this.y, range.y, range.y + range.h);
         return xOverlap&&yOverlap
     }
-    show(ctx){
-      
-        this.tl?.show(ctx);
-        this.tr?.show(ctx);
-        this.bl?.show(ctx);
-        this.br?.show(ctx);
-        color = `rgb(${((this.level+150)*50)%255},${this.level*50},${255-(this.level*50)})`;
 
-        ctx.strokeStyle =color;
-        ctx.fillStyle=color;
-        
-       // ctx.strokeRect(this.x,this.y,this.w,this.h);
-        this.points.forEach(p=>p.show(ctx,this.level));
-    }
     list_points(points){
         if(!points){
             points = [];
@@ -223,56 +220,56 @@ class QuadTree{
         this.br=null;
         points.forEach(p=>this.insert(p));
     }
+    show(ctx){
+      
+        this.tl?.show(ctx);
+        this.tr?.show(ctx);
+        this.bl?.show(ctx);
+        this.br?.show(ctx);
+        const color = `rgb(${((this.level+150)*50)%255},${this.level*50},${255-(this.level*50)})`;
+
+        ctx.strokeStyle =color;
+        ctx.fillStyle=color;
+      
+        // ctx.strokeRect(this.x,this.y,this.w,this.h);
+        this.points.forEach(p=>p.show(ctx,this.level));
+    }
 }
 class Point{
     constructor(x,y){
         this.x=x;
         this.y=y;
+        this.ref={catch_range:100}
     }
     show(ctx,level){
         ctx.font = 'bold 18px serif';
-        ctx.fillRect(this.x,this.y,5,5);
-
-        ctx.fillText(level,this.x,this.y+20)
+        ctx.fillStyle=color_string_get(level)
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,level*3+1,0,Math.PI*2)
         ctx.fill();
+        
+        //ctx.fillRect(this.x,this.y,130,130);
+
+      //  ctx.fillText(level,this.x,this.y+20)
+      //  ctx.fill();
     
     }
     move(dir,w,h){
+        dir=dir%5
         switch(dir){
             case 0: 
                 break;
-            case 6: 
-                this.x-=1;
-                break;
-            case 7: 
-                this.y+=1;
-                break;
-            case 5: 
-                this.y-=1;
-                break;
-
-            case 1: 
-                this.x+=1;
-                this.y+=1;
-                
-                break;
-            case 2: 
-                this.x-=1;
-                this.y+=1;
-                
-                break;
-            case 4: 
-                this.x+=1;
-                this.y-=1;
-                break;
             case 3: 
                 this.x-=1;
+                break;
+            case 4: 
+                this.y+=1;
+                break;
+            case 2: 
                 this.y-=1;
                 break;
-            case 8: 
-                this.x+=1;
-        
-        
+            case 1: 
+                this.x+=1;       
             }
             if(this.x<0){this.x=w}
             if(this.y<0){this.y=h}
@@ -294,7 +291,7 @@ console.log(magicical_center_point)
 const qt = new QuadTree(0,0,canvas.width,canvas.height,0,"root"); //center point - and height and width of the canvas.
 console.log(qt)
 const points=[];
-for(let i=0;i<1000;i++){
+for(let i=0;i<7000;i++){
     const x = Math.random()*canvas.width;
     const y = Math.random()*canvas.height;
     points.push(new Point(x,y))    
@@ -306,15 +303,53 @@ const clear = ()=>{
     ctx.fillStyle="#000000";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 }
+class Rect{
+    constructor(x,y,h,w){
 
+        this.centerX=x;
+        this.centerY=y;
+        this.x=this.centerX-w/2;
+        this.y=this.centerY-h/2;
+        this.h=h;
+        this.w=w;
+    }
+    move(x,y){
+        this.centerX=x;
+        this.centerY=y;
+        this.x=this.centerX-this.w/2;
+        this.y=this.centerY-this.h/2;
+    }
+    show(ctx){
+        ctx.strokeStyle="#ff00ff"
+        ctx.strokeRect(this.x,this.y,this.w,this.h);
+    }
+}
+const demo_rect=new Rect(0,0,100,200);
+window.addEventListener('mousemove',(e)=>{
+    demo_rect.move(e.x,e.y);
+    console.log(demo_rect)
+})
+let scale=20;
+window.addEventListener('click',()=>{
+    scale+=1;
+})
 window.setInterval(()=>{
     console.log("running",canvas.width,canvas.height)
     qt.reset_graph(qt.list_points());
-    qt.move(canvas.width,canvas.height);
-    
-    
+
     clear();
-    qt.show(ctx);
+    //qt.show(ctx);
+    points.forEach(p=>{
+        ctx.fillStyle="#00ff00"
+        const connections_length=qt.find(p,scale).length
+        p.move(connections_length,canvas.width,canvas.height)
+        p.show(ctx,connections_length)
+    });
+    //demo_rect.show(ctx);
+
+    //const found_points=qt.query(demo_rect)  
+    //found_points.forEach(p=>{p.show(ctx,8)
+    //})
 
 },30)
 

@@ -90,18 +90,18 @@ class QuadTree{
         this.br = new QuadTree(x+w,y+h,w,h,l,this.type+">br")
          
     }
-    get_range(point,mod){
-        if(!mod)mod=1;
+    get_range(point,range){
+        if(!range)range=1;
         return {
-            x:point.x-point.r*mod,
-            y:point.y-point.r*mod,
-            h:point.r*mod,
-            w:point.r*mod
+            x:point.x-range/2,
+            y:point.y-range/2,
+            h:range,
+            w:range
         }
     }
-    find(point){
-        return this.query(this.get_range(point,2));
-    }    
+    find(point,range){
+        return this.query(this.get_range(point,range));
+    }   
     query(range,found){
             //x y r
         if(!found){

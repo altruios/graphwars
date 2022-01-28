@@ -132,8 +132,7 @@ class Graph_Node {
 		this.connections = this.connections.filter(x => x != other_node);
 	}
 	update(width, height, cr, mr) {
-        const close_nodes = this.ref.quadTree.find(this);    
-
+        const close_nodes = this.ref.quadTree.find(this,this.ref.catch_range*2);    
 		this.make_connections(close_nodes, cr);
 		//console.time("update_cell");
         this.move(close_nodes);

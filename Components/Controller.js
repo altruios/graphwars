@@ -86,7 +86,6 @@ class Controller {
 		const triangle = (n1, n2, n3) => ([n1, n2, n3])
 		const contains_triangle = (arr, trig) => arr.find(x => x.includes(trig[0]) && x.includes(trig[1]) && x.includes(trig[2]))
 		const triangles = [];
-		const possible_triangle_nodes = [];
 		const visted_nodes = [];
 		living_nodes.forEach(node_l1 => {
 			node_l1.connections.forEach(node_l2 => {
@@ -150,21 +149,21 @@ class Controller {
 			const time_end=pad(Date.now() - startTime,3," ")
 			
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
-			
+			process.stdout.moveCursor(-1000, -11)
+			process.stdout.clearScreenDown()
 			process.stdout.write(`
-render count ${pad("",2,"	")} render time${pad("",2,"	")}count of nodes
-${pad(that.render_count,4,"0")}${pad("",2,"	")}${pad(time_end,3,"0")}${pad("",2,"	")}${that.get_living_nodes().length}
+render count${pad("",2,"	")}render time${pad("",2,"	")}count of nodes${pad("",2,"	")}game_count
+${pad(that.render_count,12," ")}${pad("",2,"	")}${pad(time_end,9," ")}ms${pad("",2,"	")}${pad(that.get_living_nodes().length,14," ")}${pad("",3,"	")}${that.game_count.toString()}
 
-fitest node:${pad("",3,"	")}pos: 
-${fitest_node.id}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
+fitest node:${pad("",2,"	")}pos: 
+${pad(fitest_node.id,12," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}
 				
 current average fitness:${pad("",2,"	")}best average fitness:${pad("",2,"	")}last average fitness:
-${that.get_average_fitness().toFixed(21)}${pad("",3,"	")}${that.best_average_fitness.toFixed(18)}${pad("",2,"	")}${that.last_average_fitness.toFixed(18)}
+${pad(that.get_average_fitness().toFixed(2),21,"0")}${pad("",3,"	")}${that.best_average_fitness.toFixed(18)}${pad("",2,"	")}${that.last_average_fitness.toFixed(18)}
 
 fitness: ${fitest_node.fitness}		
 count of connections : ${pad(fitest_node.connections.length.toString(),3," ")}`);	
-				process.stdout.moveCursor(-1000, -11)
-				process.stdout.clearLine(0)
+				
 
 				
 			},this.render_speed)
