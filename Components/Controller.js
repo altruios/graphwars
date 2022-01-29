@@ -1,5 +1,6 @@
 import Node from './Graph_Node.js'
 import ID from './ID.js'
+import {do_to_co} from '../utilities/do_to_co.js';
 import QuadTree from '../utilities/QuadTree.js'
 const node_ID = ID();
 class Controller {
@@ -7,6 +8,7 @@ class Controller {
 		this.node_count = count;
 		this.height = height;
 		this.width = width;
+		this.last_game_data=null;
 		this.collections = [];
 		this.winning_nodes=[];//save of winners in last games
 		this.losing_nodes=[];//save of the worst fit nodes
@@ -19,6 +21,7 @@ class Controller {
         this.catch_range = 100;
 		this.render_speed=1;
 		this.max_range = 200;
+		this.best_living_count=0;
 		this.render_count = 0;
 		this.game_count = 0;
 		this.brain_template = null;
@@ -72,12 +75,13 @@ class Controller {
 				if (distance <= 0 && this.get_living_nodes().length > 0) {
 					if (eater.type == eatee.type) {
 						eater.change_type();
-						eater.fitness=1;
+						eater.fitness-=Math.abs(eater.fitness-eatee.fitness);
+						eatee.fitness=1;
 						eatee.set_is_activated(false);
 					} else {
 						eatee.change_type();
 						eatee.impulse_away_from(eater);
-                        eatee.fitness=1;
+                        eatee.fitness+=eater.fitness-eatee.fitness;
 					}
 				}
 			})
@@ -141,30 +145,41 @@ class Controller {
 		this.render_count++;
 		
 	} 
-	engine(that){
+	engine(that,bucket){
 		console.log("starting engine \n\n")
 		setInterval(()=>{
+			
 			const startTime = Date.now();
 			that.run(that);
-			
+	//		bucket.set_data(that.full_json_data())
 			const time_end=pad(Date.now() - startTime,3," ")
 			
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
-			process.stdout.moveCursor(-1000, -11)
-			process.stdout.clearScreenDown()
-			process.stdout.write(`
-render count:${pad("",2,"	")}render time:${pad("",2,"	")}count of nodes:${pad("",2,"	")}game_count:
-${pad(that.render_count,12," ")}${pad("",2,"	")}${pad(time_end,9," ")}ms${pad("",2,"	")}${pad(that.get_living_nodes().length,14," ")}${pad("",2,"	")}${pad(that.game_count.toString(),10," ")}
+			const write_out={
+				exists:false
+			}
+			write_out.exists=true;
+			if(write_out.exists){
 
-fitest node:${pad("",2,"	")}position:${pad("",2,"	")}${pad('fitness:',15,' ')}${pad("",2,"	")}${pad("connections:",15," ")} 
-${pad(fitest_node.id,12," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}${pad("",2,"	")}${pad(fitest_node.fitness,14," ")}${pad("",2,"	")}${pad(fitest_node.connections.length.toString(),14," ")}
-				
-average:${pad("",2,"	")}best average:${pad("",2,"	")}last average:
-${pad(that.get_average_fitness().toFixed(2),7," ")}${pad("",3,"	")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",2,"	")}${pad(that.last_average_fitness.toFixed(2),12," ")}
-
- ${fitest_node.fitness}		
-${pad(fitest_node.connections.length.toString(),3," ")}`);	
-				
+				process.stdout.moveCursor(-1000, -13)
+				process.stdout.clearScreenDown()
+				process.stdout.write(`
+${pad("",100,"#")}
+${pad("",100,"#")}
+## render count:${pad("",8,"  ")}render time:${pad("",8,"  ")}count of nodes:${pad("",8,"  ")}game_count:${pad("",20," ")}##
+##${pad(that.render_count,13," ")}${pad("",8," ")}${pad(time_end,10," ")}ms${pad("",9," ")}${pad(that.get_living_nodes().length,14," ")}${pad("",8,"  ")} ${pad(that.game_count.toString(),10," ")}${pad("",21," ")}##
+##${pad("",96," ")}##
+##  fitest node:${pad("",11," ")}position:${pad("",8," ")}${pad('fitness:',15,' ')}${pad("",4," ")}${pad("connections:",15," ")}${pad("",20," ")}## 
+##${pad(fitest_node.id,13," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}${pad("",2,"	")}${pad(fitest_node.fitness,10," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
+##${pad("",96," ")}##			
+##      average:${pad("",7," ")}best average:${pad("",10," ")}last average:${pad("",5," ")}top survival#:${pad("",20," ")}##
+##      ${pad(that.get_average_fitness().toFixed(2),7," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
+##${pad("",96," ")}##
+${pad("",100,"#")}
+${pad("",100,"#")}`);	
+					
+			}
+			
 
 				
 			},this.render_speed)
@@ -206,23 +221,42 @@ ${pad(fitest_node.connections.length.toString(),3," ")}`);
 		this.champion = fitness_win ? winning_node.no_function_copy():this.champion;
 		this.reactivate_nodes();
         this.scatter_nodes();
-		this.set_next_brains(winning_node);
+		
+		this.set_next_brains(this.get_mating_pool(),winning_node);
         this.reset_nodes_fitness();
 	}
-	set_next_brains(winning_node){
-		const startTime = Date.now();
+	get_mating_pool(){
+		const mating_pool=[];
+		this.get_living_nodes().forEach(node=>{
+			let mate_fitness = do_to_co(node.fitness,[1,this.champion.fitness],[0.01,1])
+			const n = mate_fitness*100
+			for(let i =0;i<n;i++){
+				mating_pool.push(node);
+			}
+		})
+		return mating_pool
+	}
+	set_next_brains(mating_pool,winning_node){
 		this.collections.forEach(node=>{
-			if(!node.id==winning_node.id){ // we skip the winning node - ensuring that it stays the same
+
+			if(!(node.id==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
 				const p = node.fitness/this.best_fitness;
-				const g = node.fitness/((this.best_fitness+winning_node.fitness)/2);
-				node.Brain.become_child_of(winning_node.Brain,this.champion.Brain);
+				const g = 0.01;//node.fitness/((this.best_fitness+winning_node.fitness)/2);
+				if(mating_pool.length<=0){
+					node.Brain.copy_from(this.champion.Brain)
+					node.mutate_next(p,g*2)
+				}else{
+
+				const parent_1 = mating_pool[Math.floor(Math.random()*(mating_pool.length-1))];
+				const parent_2 = mating_pool[Math.floor(Math.random()*(mating_pool.length-1))];
+				node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
 				node.mutate_next(p,g)
+
+			}
 			}else{
 				node.Brain.copy_from(this.champion.Brain);
 			}
 		})
-		const time_end=pad(Date.now() - startTime,3," ")
-		console.log(time_end,"was time to set next brains:!\n\n\n\n\n\n\n\n")
 	}
     reset_nodes_fitness(){
         this.collections.forEach(node=>node.fitness=1)
@@ -237,12 +271,14 @@ ${pad(fitest_node.connections.length.toString(),3," ")}`);
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
 		console.log("fitest node is:");
-		const fitest = this.find_fitest_node(this.get_living_nodes());
+		const winners = this.get_living_nodes();
+		this.best_living_count=winners.length>this.best_living_count?winners.length:this.best_living_count;
+		const fitest = this.find_fitest_node(winners);
 		fitest.reward();
 		console.log(fitest.id);
 		console.log(fitest.fitness, "vs champion of:", this.best_fitness)
 		console.log("this was the fitest node: ",fitest.win_count)
-		console.log("\n\n")
+		console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n")
 		if (!fitest) {
 		} else {
 			if(this.game_count==this.epoc_level){
@@ -253,16 +289,18 @@ ${pad(fitest_node.connections.length.toString(),3," ")}`);
 		}
 	}
 
-	full_json_data(){
+	full_json_data(data){
+		const id = data?.id
 		const game_stats = this.get_game_stats();		
 		const nodes = this.collections.map(x=>x.no_function_copy());
 		const triangles = this.get_all_triangles(this.get_living_nodes());
 		const small_triangles = triangles.map(x=>x.map(n=>(n.no_function_copy())))
-
+		
+		const target_node = id?this.collections.find(x=>x.id==id).no_function_copy():this.champion;
 
 	//	this.update_quad_tree(this.get_living_nodes())
 	//	const quad_tree = this.quadTree.no_function_copy();
-		return {game_stats,nodes,triangles:small_triangles}	
+		return {game_stats,nodes,triangles:small_triangles,target_node}	
 	}
 	get_selected_node(selected_id){
 		return this.collections.find(x=>x.id==selected_id)

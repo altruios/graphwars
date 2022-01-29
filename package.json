@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "genetic algorithm stuff on a graph",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js"
@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.19.1",
     "express": "^4.17.2",
     "nodemon": "^2.0.15"
   }

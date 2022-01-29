@@ -5,6 +5,7 @@ class Board {
 		this.height = canvas.height;
 		this.width = canvas.width;
 		this.canvas = canvas;
+        this.target_node="";
 		this.ctx = canvas.getContext("2d");
 		this._draw_text_flag = true;
 		this._draw_vision_flag = false;
@@ -14,7 +15,7 @@ class Board {
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
-	draw(living_nodes,triangles,quad_tree) {
+	draw(living_nodes,triangles,quad_tree,target_node) {
         this.blank();
 
 		triangles.forEach(trig => {
@@ -68,13 +69,16 @@ class Board {
 
         });
         this.highlight_fittest_node(living_nodes);
+        this.draw_target_node(target_node)
 	}
-
+    draw_target_node(node){
+      //  console.log("hello,", node);
+    }
     highlight_fittest_node(nodes){
         const color = this.bg_color=="#000000"?`rgba(255,255,255,0.3)`:`rgba(0,0,0,0.3)`
         this.ctx.fillStyle=color;
         const fittest_node=this.get_fitest_node(nodes);
-        console.log("fittestnode",fittest_node.id,fittest_node.fitness)
+    //    console.log("fittestnode",fittest_node.id,fittest_node.fitness)
         this.ctx.beginPath();
         this.ctx.arc(fittest_node.x,fittest_node.y,fittest_node.r+20,0,Math.PI*2);
         this.ctx.fill()
@@ -99,7 +103,7 @@ class Board {
     }
     update_display(data){
         //at this point -- react?
-        console.log(data);
+        //console.log(data);
         removeAllChildNodes(this.display);
         removeAllChildNodes(this.header_display);
         const stats = data.game_stats;
@@ -113,12 +117,8 @@ class Board {
         const node_container_div = document.createElement('table');
         node_container_div.classList.add("nodetable")
        // const nodes = data.nodes.sort(compare_fitness).sort(compare_is_active);
-        const living_nodes = data.nodes.filter(x=>x.is_activated==true);
-        const dead_nodes = data.nodes.filter(x=>x.is_activated==false)
-        dead_nodes.forEach(x=>{x.fitness=0.1})
-        console.log(dead_nodes,"are dead nodes")
-        const nodes = [...living_nodes.sort(compare_fitness),...dead_nodes.sort(compare_fitness)]
-        //make head0
+        const nodes = data.nodes.sort(compare_fitness).sort(compare_is_active);
+         //make head0
         const table_header = document.createElement('tr');
         for(let prop in nodes[0]){
             if(prop==="is_activated") continue
@@ -142,12 +142,27 @@ class Board {
         //make body
         for(const node of nodes){
             const node_div = document.createElement('tr');
+            const that = this;
+            
+            
             const color = node.is_activated==true?"alive":"dead";
             node_div.dataset.color=color
             node_div.classList.add("node_div")
             for(const prop in node){
                 if(prop==="is_activated") continue
                 const div = document.createElement('td');
+                if(prop==="id"){
+                    div.id=node[prop]
+                    div.addEventListener('click',(e)=>{
+                        console.log("clicked!@#!@#!@#");
+                        const id = e.target.id;
+                        console.log("id",id,e);
+                        that.target_node=id;
+                        console.log(that.target_node,"is now changed?");
+                    })
+                }
+                
+
                 div.classList.add(prop);
                 div.dataset.color=color;
                 if(Array.isArray(node[prop])){
@@ -187,16 +202,24 @@ class Board {
         this.width = data.game_stats.width;
     }
     async next_image(){
-        const data = await this.request_data();
+        const data = await this.request_data(this.target_node);
         this.data=data;
-        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles);
+        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.target_node);
         this.draw_quad_tree(data.quad_tree)
         this.render_count=data.render_count;
-     //   this.update_display(data);
+        this.update_display(data);
 
     }
-	request_data() {
-        return  fetch("/get_current_data").then(data=> data.json());
+	request_data(id) {
+        const d = {id}
+        const options = {
+            method:"POST",
+            headers:{
+                'Content-Type':'application/json',
+            },
+            body: JSON.stringify(d)
+        }
+        return  fetch("/get_current_data",options).then(data=> data.json());
 	}
 	run(){
 		const that = this;

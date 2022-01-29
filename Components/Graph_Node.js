@@ -84,9 +84,12 @@ class Graph_Node {
 		this.y -= Math.sin(angle) * other_node.r;
 	}
 	move(all_bubbles) {
-		const result = this.Brain.run(all_bubbles);
-		this.x += result[0] / result[1] || 0;
-		this.y += result[2] / result[3] || 0;
+		const result = this.Brain.run(this.ref.get_living_nodes());
+		const addx =result[0] / result[1]; 
+		const addy =result[2] / result[3]; 
+		(isNaN(addx)||isNaN(addy))?console.log(this.ref.get_living_nodes().length,"is length of living nodes"):null;
+		this.x += !isNaN(addx)?addx: Math.random();
+		this.y += !isNaN(addy)?(addy): Math.random();
 		if (!this.y || !this.x) {
 			console.log(result, "is result from failed brain");
 			console.log(this.x, this.y, "are not numbers?", " brain below");
@@ -146,11 +149,12 @@ class Graph_Node {
 
     }
     deactivate(){
+		this.fitness=1;
         this.connections.forEach(other_node=>this.disconnect(other_node));
     }
     set_is_activated(bool){
 		if(!bool){
-			this.fitness=0.1
+			this.fitness=1
 		}
         this.is_activated=bool;
     }

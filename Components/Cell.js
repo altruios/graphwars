@@ -111,17 +111,19 @@ class Cell {
     }
     mutate_bias(p,g){
         if(g>Math.random()){
-            this.bias+=this._mutate(p)
+            this.bias=this._mutate(this.bias,p)
 		}
     }
 
     mutate_weights(p,g){
-        this.weights.forEach(weight=>(g>Math.random())?weight+=this._mutate(p):null)
+        this.weights.forEach(weight=>(g>Math.random())?weight=this._mutate(weight,p):null)
     }
-    _mutate(p){
+    _mutate(val,p){
 		this.mutation_counter++;
+		//console.log(p,val,"p and val, mutation: ", this.mutation_counter)
+		const sign =Math.random()>0.5?1:-1; 
+		return Math.max(Math.min(sign*p+val,1),-1)
 
-        return this.mutation*p
     }
 }
 
