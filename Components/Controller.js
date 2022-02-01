@@ -62,7 +62,7 @@ class Controller {
             if(triangle.every((node,i,arr)=>node.type==arr[(i+1)%arr.length==0]).type) 50
             if(triangle.every((node,i,arr)=>node.type!=arr[(i+1)%arr.length==0]).type) 250
 			const area = this.triangle_area(triangle);
-			const reward =Math.floor(Math.sqrt((area)/reward_type))
+			const reward =Math.pow(Math.floor(Math.sqrt((area)/reward_type)),3)
 			triangle.forEach(node => node.update_fitness(reward))
         })
 	}
@@ -75,13 +75,14 @@ class Controller {
 				if (distance <= 0 && this.get_living_nodes().length > 0) {
 					if (eater.type == eatee.type) {
 						eater.change_type();
-						eater.fitness-=Math.abs(eater.fitness-eatee.fitness);
+						eater.fitness=1//-=Math.abs(eater.fitness-eatee.fitness);
 						eatee.fitness=1;
 						eatee.set_is_activated(false);
 					} else {
 						eatee.change_type();
 						eatee.impulse_away_from(eater);
-                        eatee.fitness+=eater.fitness-eatee.fitness;
+                        eatee.fitness=1;
+						eater.fitness=1;
 					}
 				}
 			})
@@ -136,11 +137,15 @@ class Controller {
 		//return this.collections
         return this.collections.filter(x=>x.is_activated)
     }
+	reward(living_nodes){
+		living_nodes.forEach(node=>node.update_fitness(1));
+		const triangles = this.get_all_triangles(living_nodes);
+		this.reward_triangles(triangles)
+
+	}
 	render() {
         const living_nodes = this.get_living_nodes();
-        const triangles = this.get_all_triangles(living_nodes);
-
-		this.reward_triangles(triangles)
+		this.reward(living_nodes);
 		this.step(living_nodes);
 		this.render_count++;
 		
@@ -173,7 +178,7 @@ ${pad("",100,"#")}
 ##${pad(fitest_node.id,13," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}${pad("",2,"	")}${pad(fitest_node.fitness,10," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##			
 ##      average:${pad("",7," ")}best average:${pad("",10," ")}last average:${pad("",5," ")}top survival#:${pad("",20," ")}##
-##      ${pad(that.get_average_fitness().toFixed(2),7," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
+##  ${pad(that.get_average_fitness().toFixed(2),11," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##
 ${pad("",100,"#")}
 ${pad("",100,"#")}`);	
