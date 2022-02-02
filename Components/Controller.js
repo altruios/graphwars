@@ -4,7 +4,7 @@ import {do_to_co} from '../utilities/do_to_co.js';
 import QuadTree from '../utilities/QuadTree.js'
 const node_ID = ID();
 class Controller {
-	constructor(count,height,width) {
+	constructor(count,width,height) {
 		this.node_count = count;
 		this.height = height;
 		this.width = width;
@@ -19,7 +19,7 @@ class Controller {
         this.max_render_count = 5000;
 		this.epoc_level=910000;
         this.catch_range = 100;
-		this.render_speed=30;
+		this.render_speed=1;
 		this.max_range = 200;
 		this.best_living_count=0;
 		this.render_count = 0;
@@ -36,19 +36,16 @@ class Controller {
 			console.log("setting socket");
 			this.socket=socket;
 		}
+		unset_socket(){
+			this.socket=null;
+		}
 		emit(){
 			if(this.socket==null) return
 			const data = JSON.stringify(this.full_json_data())
-			try{
-				console.log('emiting',data.length)
 
-				this.socket.emit("image",data)
-				console.log('emited')
+			this.socket.emit("image",data)
 
-			}catch (e){
-				console.log(e);
-				console.log("what the what")
-			}
+			
 		}
 	init_collection() {
 		for (let i = 0; i < this.node_count; i++) {
@@ -197,7 +194,7 @@ class Controller {
 			const write_out={
 				exists:false
 			}
-	//		write_out.exists=true;
+			write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -340,7 +337,7 @@ ${pad("",100,"#")}`);
 
 
 
-		const nodes = this.collections.map(x=>x.no_function_copy());
+		const nodes = this.collections.map(x=>x.shallow_copy());
 
 		const triangles = this.get_all_triangles(this.get_living_nodes()).map(x=>x.map(y=>y.id));
 

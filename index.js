@@ -36,11 +36,14 @@ io.on('connection', (socket) => {
   console.log('a user connected')
   
   game.set_socket(socket)
-  setInterval(()=>game.run(game),game.render_speed)
-  ;});
 
+  socket.on("disconnect", () => {
+    console.log("unsetting socket");
+    game.unset_socket();
+  })
+  ;});
 server.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
   })
-//game.engine(game);
+game.engine(game);
 

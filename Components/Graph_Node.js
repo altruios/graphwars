@@ -20,6 +20,23 @@ class Graph_Node {
         this.last_performance = 0;
         this.win_count=0;
 	}
+	shallow_copy(){
+		return {id:this.id,
+		win:this.win_count,
+		x:this.x.toFixed(2), 
+		y:this.y.toFixed(2),
+		r:this.r.toFixed(2),
+		type:this.type,
+		is_activated:this.is_activated,  
+		fitness:this.fitness.toFixed(2),
+		last_p:(this.last_performance*100).toFixed(1),
+		last_x:(this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]).toFixed(2)||0,
+		last_y:(this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]).toFixed(2)||0,
+		connections:this.connections.map(x=>({x:x.x,y:x.y})),
+
+
+	}
+	}
     no_function_copy(){
         return {
 			id:this.id,

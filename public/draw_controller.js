@@ -17,18 +17,25 @@ class Board {
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
 	draw(living_nodes,triangles,quad_tree,target_node) {
+        console.time("draw")
         this.blank();
 
 		triangles.forEach(trig => {
-			const grd = this.ctx.createLinearGradient(trig[0].x, trig[0].y, (trig[1].x + trig[2].x) / 2, (trig[1].y + trig[2].y) / 2)
-			grd.addColorStop(0, this.get_node_color(trig[0]));
-			grd.addColorStop(.5, this.get_node_color(trig[1]));
-			grd.addColorStop(1, this.get_node_color(trig[2]));
+            let trig_nodes = trig.map(x=>living_nodes.find(y=>y.id==x));
+            
+			const grd = this.ctx.createLinearGradient(
+                Number(trig_nodes[0].x), 
+                Number(trig_nodes[0].y), 
+                (Number(trig_nodes[1].x) + Number(trig_nodes[2].x)) / 2, 
+                (Number(trig_nodes[1].y) + Number(trig_nodes[2].y)) / 2)
+			grd.addColorStop(0, this.get_node_color(trig_nodes[0]));
+			grd.addColorStop(.5, this.get_node_color(trig_nodes[1]));
+			grd.addColorStop(1, this.get_node_color(trig_nodes[2]));
 			this.ctx.fillStyle = grd;
 			this.ctx.beginPath();
-			this.ctx.moveTo(trig[0].x, trig[0].y);
-			this.ctx.lineTo(trig[1].x, trig[1].y);
-			this.ctx.lineTo(trig[2].x, trig[2].y);
+			this.ctx.moveTo(trig_nodes[0].x, trig_nodes[0].y);
+			this.ctx.lineTo(trig_nodes[1].x, trig_nodes[1].y);
+			this.ctx.lineTo(trig_nodes[2].x, trig_nodes[2].y);
 			this.ctx.fill();
 		})
 		living_nodes.forEach(node => {
@@ -71,7 +78,10 @@ class Board {
         });
         this.highlight_fittest_node(living_nodes);
         this.draw_target_node(target_node)
-	}
+	
+        console.timeEnd("draw")
+
+    }
     draw_target_node(node){
       //  console.log("hello,", node);
     }
@@ -172,7 +182,7 @@ class Board {
                 }
                 else if(!isNaN(node[prop])&& typeof node[prop] !== "boolean"){
 
-                    div.innerText = node[prop].toFixed(1)
+                    div.innerText = node[prop]
                 }
                 else{
                     div.innerText =node[prop]
@@ -202,6 +212,7 @@ class Board {
         this.width = data.game_stats.width;
     }
     async next_image(data){
+
         console.log("next image called")
         this.set_height_and_width(data)
         this.data=data;

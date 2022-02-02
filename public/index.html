@@ -25,8 +25,8 @@
         const board = new Board(canvas,display,hdisplay)
         console.log(socket,board,"render steped")
         socket.on("image",(d)=>{
-            console.log(d);
-        //    board.next_image(d)
+            const data = JSON.parse(d);
+            board.next_image(data)
         })
     </script>
 </html>
