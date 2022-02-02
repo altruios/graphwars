@@ -70,12 +70,12 @@ class Cell {
 		this.bias = cell.bias;
 
 	}
-	_child(cell,ocell,chosen){
-		const doner_bool = chosen%2==0
-		const main_doner = doner_bool?cell:ocell;
+	_child(cell,ocell,chosen){ // i of collection is chosen
+		const doner_bool = cell.Brain.fitness>ocell.Brain.fitness?1:0;
+		const main_doner = doner_bool?cell:ocell; //fiter cell is main doner
 		const secondary_doner = doner_bool?ocell:cell;
-		this.bias = (cell.bias+ocell.bias)/2 //bias is pure average
-		this.weights.map((x,i)=>i%2==0?(main_doner.weights[i]):secondary_doner.weights[i])
+		this.bias = (main_doner.bias*2+secondary_doner)/3 //bias is weighted average of main doner
+		this.weights.map((x,i)=>i%3==0?(secondary_doner.weights[i]):main_doner.weights[i])
 	}
 	mutation_rate_modification(value, chance) {
 		if (Math.random < chance) {

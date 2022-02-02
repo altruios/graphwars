@@ -1,34 +1,46 @@
 import express from 'express'
-import bodyParser from 'body-parser';
+import {Server} from 'socket.io'
+import http from 'http'
 import Controller from './Components/Controller.js'
-const game = new Controller(500,2000,2000);
+import cors from 'cors'
+const app = express();
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 
+
+
+
+
+
+const game = new Controller(1000,3840,2160);
 
 const port =3000;
-const app = express();
-app.use(bodyParser.json());
 
    
 app.use(express.static('public'))
 
 app.get("/", function(req,res){
-
-})
-app.post("/get_current_data",function(req,res){
-    const id = req.body
-    res.send(renderBucket.data)
+console.log("hello!")
 })
 
-let renderBucket = {
-  data:null,
-  set_data:(data)=>{
-    renderBucket.data=data;
-  }
-};
-renderBucket.set_data("2")
-app.listen(port, () => {
+io.on('connection', (socket) => {  
+  console.log('a user connected')
+  
+  game.set_socket(socket)
+  setInterval(()=>game.run(game),game.render_speed)
+  ;});
+
+server.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
   })
-game.engine(game,renderBucket);
+//game.engine(game);
 

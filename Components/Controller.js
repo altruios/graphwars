@@ -19,7 +19,7 @@ class Controller {
         this.max_render_count = 5000;
 		this.epoc_level=910000;
         this.catch_range = 100;
-		this.render_speed=1;
+		this.render_speed=30;
 		this.max_range = 200;
 		this.best_living_count=0;
 		this.render_count = 0;
@@ -30,6 +30,25 @@ class Controller {
 		this.best_average_fitness=1;
         this.init_collection();
 		this.run.bind(this);
+		this.socket=null;
+		}
+		set_socket(socket){
+			console.log("setting socket");
+			this.socket=socket;
+		}
+		emit(){
+			if(this.socket==null) return
+			const data = JSON.stringify(this.full_json_data())
+			try{
+				console.log('emiting',data.length)
+
+				this.socket.emit("image",data)
+				console.log('emited')
+
+			}catch (e){
+				console.log(e);
+				console.log("what the what")
+			}
 		}
 	init_collection() {
 		for (let i = 0; i < this.node_count; i++) {
@@ -46,23 +65,34 @@ class Controller {
 	}
 	step(living_nodes) {
 		this.update_quad_tree(living_nodes);
+
+
 		this.update_collections(living_nodes);
+		this.emit();
+		
 	}
 	update_quad_tree(living_nodes){
 		this.quadTree.reset_graph(living_nodes);
 	}
 	update_collections(livingNodes) {
+
 		livingNodes.forEach(node => node.update(this.width, this.height, this.catch_range, this.max_range))
+
+
 		this.handle_eat(livingNodes);
 		livingNodes.forEach(node => !node.is_activated ? node.deactivate() : null)
+
+
+
+
 	}
 	reward_triangles(triangles) {
 		triangles.forEach(triangle => {
-			let reward_type =  150
-            if(triangle.every((node,i,arr)=>node.type==arr[(i+1)%arr.length==0]).type) 50
-            if(triangle.every((node,i,arr)=>node.type!=arr[(i+1)%arr.length==0]).type) 250
+			let reward_type =  250
+            if(triangle.every((node,i,arr)=>node.type==arr[(i+1)%arr.length==0]).type) reward_type=100
+            if(triangle.every((node,i,arr)=>node.type!=arr[(i+1)%arr.length==0]).type) reward_type=500
 			const area = this.triangle_area(triangle);
-			const reward =Math.pow(Math.floor(Math.sqrt((area)/reward_type)),3)
+			const reward =Math.floor(Math.sqrt((area)/reward_type))
 			triangle.forEach(node => node.update_fitness(reward))
         })
 	}
@@ -138,32 +168,36 @@ class Controller {
         return this.collections.filter(x=>x.is_activated)
     }
 	reward(living_nodes){
-		living_nodes.forEach(node=>node.update_fitness(1));
+		living_nodes.forEach(node=>node.update_fitness(0.01));
 		const triangles = this.get_all_triangles(living_nodes);
 		this.reward_triangles(triangles)
 
 	}
 	render() {
+
         const living_nodes = this.get_living_nodes();
 		this.reward(living_nodes);
+			
+
 		this.step(living_nodes);
+
+
 		this.render_count++;
 		
 	} 
-	engine(that,bucket){
+	engine(that){
 		console.log("starting engine \n\n")
 		setInterval(()=>{
 			
 			const startTime = Date.now();
 			that.run(that);
-	//		bucket.set_data(that.full_json_data())
 			const time_end=pad(Date.now() - startTime,3," ")
 			
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			const write_out={
 				exists:false
 			}
-			write_out.exists=true;
+	//		write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -175,7 +209,7 @@ ${pad("",100,"#")}
 ##${pad(that.render_count,13," ")}${pad("",8," ")}${pad(time_end,10," ")}ms${pad("",9," ")}${pad(that.get_living_nodes().length,14," ")}${pad("",8,"  ")} ${pad(that.game_count.toString(),10," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##
 ##  fitest node:${pad("",11," ")}position:${pad("",8," ")}${pad('fitness:',15,' ')}${pad("",4," ")}${pad("connections:",15," ")}${pad("",20," ")}## 
-##${pad(fitest_node.id,13," ")}${pad("",2,"	")}x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}${pad("",2,"	")}${pad(fitest_node.fitness,10," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
+##${pad("",5," ")}${pad(fitest_node.id,8," ")}${pad("",5," ")}${pad(`x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}`,15," ")}${pad("",11," ")}${pad(fitest_node.fitness.toFixed(1),12," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##			
 ##      average:${pad("",7," ")}best average:${pad("",10," ")}last average:${pad("",5," ")}top survival#:${pad("",20," ")}##
 ##  ${pad(that.get_average_fitness().toFixed(2),11," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
@@ -233,7 +267,7 @@ ${pad("",100,"#")}`);
 	get_mating_pool(){
 		const mating_pool=[];
 		this.get_living_nodes().forEach(node=>{
-			let mate_fitness = do_to_co(node.fitness,[1,this.champion.fitness],[0.01,1])
+			let mate_fitness = do_to_co(node.fitness,[1,this.champion.fitness],[0.001,1])
 			const n = mate_fitness*100
 			for(let i =0;i<n;i++){
 				mating_pool.push(node);
@@ -247,15 +281,19 @@ ${pad("",100,"#")}`);
 			if(!(node.id==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
 				const p = node.fitness/this.best_fitness;
 				const g = 0.01;//node.fitness/((this.best_fitness+winning_node.fitness)/2);
-				if(mating_pool.length<=0){
+				if(mating_pool.length<=0){ //low survival rate - something weird - double g
 					node.Brain.copy_from(this.champion.Brain)
 					node.mutate_next(p,g*2)
 				}else{
-
-				const parent_1 = mating_pool[Math.floor(Math.random()*(mating_pool.length-1))];
-				const parent_2 = mating_pool[Math.floor(Math.random()*(mating_pool.length-1))];
-				node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
-				node.mutate_next(p,g)
+					const p1 = Math.floor(Math.random()*(mating_pool.length-1))
+					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
+					while(p2==p1){
+						p2=Math.floor(Math.random()*(mating_pool.length-1))
+					}
+					const parent_1 = mating_pool[p1];
+					const parent_2 = mating_pool[p2];
+					node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
+					node.mutate_next(p,g)
 
 			}
 			}else{
@@ -281,7 +319,7 @@ ${pad("",100,"#")}`);
 		const fitest = this.find_fitest_node(winners);
 		fitest.reward();
 		console.log(fitest.id);
-		console.log(fitest.fitness, "vs champion of:", this.best_fitness)
+		console.log(fitest.fitness.toFixed(1), "vs champion of:", this.best_fitness.toFixed(1))
 		console.log("this was the fitest node: ",fitest.win_count)
 		console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n")
 		if (!fitest) {
@@ -294,18 +332,22 @@ ${pad("",100,"#")}`);
 		}
 	}
 
-	full_json_data(data){
-		const id = data?.id
+	full_json_data(){
+
+
 		const game_stats = this.get_game_stats();		
+
+
+
+
 		const nodes = this.collections.map(x=>x.no_function_copy());
-		const triangles = this.get_all_triangles(this.get_living_nodes());
-		const small_triangles = triangles.map(x=>x.map(n=>(n.no_function_copy())))
-		
-		const target_node = id?this.collections.find(x=>x.id==id).no_function_copy():this.champion;
+
+		const triangles = this.get_all_triangles(this.get_living_nodes()).map(x=>x.map(y=>y.id));
+
 
 	//	this.update_quad_tree(this.get_living_nodes())
 	//	const quad_tree = this.quadTree.no_function_copy();
-		return {game_stats,nodes,triangles:small_triangles,target_node}	
+		return {game_stats,nodes,triangles}	
 	}
 	get_selected_node(selected_id){
 		return this.collections.find(x=>x.id==selected_id)

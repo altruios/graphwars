@@ -136,9 +136,15 @@ class Brain {
 					data.push(this.Trool(node.type))
 					data.push(node.scream())
 				})
+
+				for(let i=0;i< 8-ref.length;i++){
+					data.push(0);
+				}
+
             }else{
                 for(let i=0;i<c;i++){
                     for(let j=0;j<8;j++){
+						console.log('pushing blank data')
                         data.push(0);
                     }
                 }

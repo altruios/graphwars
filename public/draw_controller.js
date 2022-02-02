@@ -12,6 +12,7 @@ class Board {
 		this.bg_color = "#000000";
         this.render_speed=30;
 	}
+
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
@@ -194,15 +195,15 @@ class Board {
 		this.bg_color = this.bg_color == "#000000" ? "#FFFFFF" : "#000000"
         return this.bg_color
 	}
-    async set_height_and_width(){
-        const data = await this.request_data();
+    async set_height_and_width(data){
         this.canvas.height = data.game_stats.height;
         this.canvas.width = data.game_stats.width;
         this.height = data.game_stats.height;
         this.width = data.game_stats.width;
     }
-    async next_image(){
-        const data = await this.request_data(this.target_node);
+    async next_image(data){
+        console.log("next image called")
+        this.set_height_and_width(data)
         this.data=data;
         this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.target_node);
         this.draw_quad_tree(data.quad_tree)
@@ -210,17 +211,7 @@ class Board {
         this.update_display(data);
 
     }
-	request_data(id) {
-        const d = {id}
-        const options = {
-            method:"POST",
-            headers:{
-                'Content-Type':'application/json',
-            },
-            body: JSON.stringify(d)
-        }
-        return  fetch("/get_current_data",options).then(data=> data.json());
-	}
+
 	run(){
 		const that = this;
 		const engine=window.setInterval(()=>that.next_image(), that.render_speed)

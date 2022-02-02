@@ -14,15 +14,19 @@
         </div>        
     </div>
     </body>
-
+    <script src="/socket.io/socket.io.js"></script>
     <script src="./draw_controller.js"></script>
     <script>
+        var socket = io();
         const canvas = document.getElementById('canvas')
         const display = document.getElementById('display');
         const hdisplay = document.getElementById('hdisplay');
        //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/
         const board = new Board(canvas,display,hdisplay)
-        board.set_height_and_width().then(()=>board.run())
-
+        console.log(socket,board,"render steped")
+        socket.on("image",(d)=>{
+            console.log(d);
+        //    board.next_image(d)
+        })
     </script>
 </html>

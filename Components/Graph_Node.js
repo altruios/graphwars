@@ -84,10 +84,9 @@ class Graph_Node {
 		this.y -= Math.sin(angle) * other_node.r;
 	}
 	move(all_bubbles) {
-		const result = this.Brain.run(this.ref.get_living_nodes());
+		const result = this.Brain.run(all_bubbles);
 		const addx =result[0] / result[1]; 
 		const addy =result[2] / result[3]; 
-		(isNaN(addx)||isNaN(addy))?console.log(this.ref.get_living_nodes().length,"is length of living nodes"):null;
 		this.x += !isNaN(addx)?addx: Math.random();
 		this.y += !isNaN(addy)?(addy): Math.random();
 		if (!this.y || !this.x) {
@@ -97,10 +96,8 @@ class Graph_Node {
 		}
 	}
 	update_r() {
-		const fitness_range = do_to_co(this.fitness,[1,30000],[1,10])
 		const update_r = this.connections.length
-		this.r = fitness_range * (update_r);
-        this.r=Math.max(5,this.r);
+		this.r = Math.abs(Math.sin(update_r) * (update_r));
 	}
 	update_color() {
 		this.color = this.connections.length == 0 ? "#aaaaaa" : this.type == "A" ? `#ff0000` : this.type == "B" ? "#00ff00" : "#0000ff"
@@ -135,10 +132,12 @@ class Graph_Node {
 		this.connections = this.connections.filter(x => x != other_node);
 	}
 	update(width, height, cr, mr) {
-        const close_nodes = this.ref.quadTree.find(this,this.ref.catch_range*2);    
+        const close_nodes = this.ref.quadTree.find(this,this.ref.catch_range*3);    
 		this.make_connections(close_nodes, cr);
-		//console.time("update_cell");
         this.move(close_nodes);
+
+
+		//console.time("update_cell");
 
 		//console.timeEnd("update_cell");
 
@@ -146,6 +145,7 @@ class Graph_Node {
         this.update_r();
         this.update_color();
         this.boundries(width, height);
+
 
     }
     deactivate(){
@@ -184,3 +184,11 @@ class Graph_Node {
 	}
 }
 export default Graph_Node
+
+const pad = (val,pamount,what)=>{
+	val=String(val)
+	while(val.length<pamount){
+		val=what+val
+	}
+	return val
+}
