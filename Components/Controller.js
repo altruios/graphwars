@@ -307,10 +307,19 @@ ${pad("",100,"#")}`);
     scatter_nodes(){
         this.collections.forEach(node=>node.scatter())
     }
-
+	fuck_over_wall_huggers(){
+		this.collections.forEach(c=>{
+			if(c.x<=0||c.y<=0||c.x>=this.width||c.y>=this.height){
+				c.fitness=0.1;
+			}
+		})
+	}
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
 		console.log("fitest node is:");
+		this.fuck_over_wall_huggers()
+
+
 		const winners = this.get_living_nodes();
 		this.best_living_count=winners.length>this.best_living_count?winners.length:this.best_living_count;
 		const fitest = this.find_fitest_node(winners);

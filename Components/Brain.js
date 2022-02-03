@@ -45,7 +45,7 @@ class Brain {
 	become_child_of(brain,other_brain){
 		this.generation_number = this.host.ref.game_count;
 
-		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i],i))
+		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i]))
 	}
 	copy_from(template) {
 		this.generation_number = this.host.ref.game_count;
