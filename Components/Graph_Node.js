@@ -199,6 +199,17 @@ class Graph_Node {
 	reward(){
 		this.win_count++;
 	}
+	get_dna(){
+		let str = "";
+		for(let i=0;i<this.Brain.matrix.length;i++){
+			const bm = this.Brain.matrix;
+			for(let j=0;j<bm[i].weights.length;j++){
+				str+= (bm[i].weights[j]>0?"A":"B")
+			}
+			str+= (bm[i].bias>0?"C":"D")
+		}
+		return str
+	}
 }
 export default Graph_Node
 

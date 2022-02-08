@@ -16,10 +16,10 @@ class Controller {
 		this.quadTree = new QuadTree(0,0,this.width,this.height)
 		this.best_fitness = 1;
 		this.stop=false;
-        this.max_render_count = 5000;
+        this.max_render_count = 3000;
 		this.epoc_level=910000;
         this.catch_range = 100;
-		this.render_speed=1;
+		this.render_speed=7;
 		this.max_range = 200;
 		this.best_living_count=0;
 		this.render_count = 0;
@@ -227,17 +227,6 @@ ${pad("",100,"#")}`);
 		const average = sum/total;
 		return average
 	}
-	timeTest(fn,args){
-		console.time(`time of: ${fn.name}`);
-		//take the function, arguments in order, run it - return a time
-		if(Array.isArray(args)){
-			fn(...args)
-		}else{
-			fn(args)
-		}
-		console.timeEnd(`time of: ${fn.name}`);
-
-	}
 	run(that) {
  		if (that.stop==true) return
 		if (that.render_count > that.max_render_count) that.evaluate()
@@ -255,24 +244,31 @@ ${pad("",100,"#")}`);
 		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
 		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
 		this.champion = fitness_win ? winning_node.no_function_copy():this.champion;
-		this.reactivate_nodes();
         this.scatter_nodes();
 		
 		this.set_next_brains(this.get_mating_pool(),winning_node);
+		this.reactivate_nodes();
+
         this.reset_nodes_fitness();
 	}
 	get_mating_pool(){
 		const mating_pool=[];
 		this.get_living_nodes().forEach(node=>{
-			let mate_fitness = do_to_co(node.fitness,[1,this.champion.fitness],[0.001,1])
+			let mate_fitness = do_to_co(node.fitness,[0.1,this.champion.fitness],[0.001,3])
 			const n = mate_fitness*100
 			for(let i =0;i<n;i++){
 				mating_pool.push(node);
 			}
 		})
+		if(mating_pool.length<3){
+			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
+			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
+			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
+		}
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node){
+		console.log("test!",this.collections[0].Brain.matrix[89].weights[2])
 		this.collections.forEach(node=>{
 
 			if(!(node.id==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
@@ -282,14 +278,29 @@ ${pad("",100,"#")}`);
 					node.Brain.copy_from(this.champion.Brain)
 					node.mutate_next(p,g*2)
 				}else{
-					const p1 = Math.floor(Math.random()*(mating_pool.length-1))
-					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
-					while(p2==p1){
-						p2=Math.floor(Math.random()*(mating_pool.length-1))
-					}
+					const p1 = Math.floor(Math.random()*(mating_pool.length-1))					
 					const parent_1 = mating_pool[p1];
-					const parent_2 = mating_pool[p2];
+
+
+					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
+					let parent_2 = mating_pool[p2];
+
+					while(parent_1.id==parent_2.id){ //no cross breed
+						p2=Math.floor(Math.random()*(mating_pool.length-1))
+						parent_2 = mating_pool[p2];
+					}
+
+			//		console.log(parent_1.id,"and",parent_2.id,"have a child upon the corpse of:",node.id);
+					const dna_str1 = parent_1.get_dna()
+					const dna_str2 = parent_2.get_dna()
+					const dna_str3 = node.get_dna();
 					node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
+					const dna_str4 = node.get_dna()
+			//		console.log(dna_str4==dna_str3,"compare child dna")
+					const changes = Array.from(dna_str4).map((gene,i)=>gene==dna_str3[i]?dna_str2[i]==dna_str1[i]?"?":gene==dna_str1[i]?"1":"2":"_")
+			//		console.log(changes.join(""));
+
+
 					node.mutate_next(p,g)
 
 			}
@@ -297,6 +308,9 @@ ${pad("",100,"#")}`);
 				node.Brain.copy_from(this.champion.Brain);
 			}
 		})
+
+
+		console.log("test!2",this.collections[0].Brain.matrix[89].weights[2],"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 	}
     reset_nodes_fitness(){
         this.collections.forEach(node=>node.fitness=1)
@@ -309,7 +323,7 @@ ${pad("",100,"#")}`);
     }
 	fuck_over_wall_huggers(){
 		this.collections.forEach(c=>{
-			if(c.x<=0||c.y<=0||c.x>=this.width||c.y>=this.height){
+			if(c.x<=20||c.y<=20||c.x>=this.width-20||c.y>=this.height-20){
 				c.fitness=0.1;
 			}
 		})

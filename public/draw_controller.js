@@ -77,19 +77,16 @@ class Board {
 
         });
         this.highlight_fittest_node(living_nodes);
-        this.draw_target_node(target_node)
+     //   this.draw_target_node(target_node)
 	
         console.timeEnd("draw")
 
     }
-    draw_target_node(node){
-      //  console.log("hello,", node);
-    }
+
     highlight_fittest_node(nodes){
         const color = this.bg_color=="#000000"?`rgba(255,255,255,0.3)`:`rgba(0,0,0,0.3)`
         this.ctx.fillStyle=color;
         const fittest_node=this.get_fitest_node(nodes);
-    //    console.log("fittestnode",fittest_node.id,fittest_node.fitness)
         this.ctx.beginPath();
         this.ctx.arc(fittest_node.x,fittest_node.y,fittest_node.r+20,0,Math.PI*2);
         this.ctx.fill()
@@ -112,12 +109,10 @@ class Board {
         this.draw_quad_tree(tree.bl,dept+40)
         this.draw_quad_tree(tree.br,dept+40)
     }
-    update_display(data){
-        //at this point -- react?
-        //console.log(data);
-        removeAllChildNodes(this.display);
+    update_meta_data_display(game_stats){
+
         removeAllChildNodes(this.header_display);
-        const stats = data.game_stats;
+        const stats = game_stats;
         const stats_div = document.createElement('div');
         for(const prop in stats){
             const div = document.createElement('div');
@@ -125,10 +120,16 @@ class Board {
             stats_div.appendChild(div);
         }
         this.header_display.appendChild(stats_div)
+
+    }
+    update_node_data_display(data){
+
+        removeAllChildNodes(this.display);
+
         const node_container_div = document.createElement('table');
         node_container_div.classList.add("nodetable")
        // const nodes = data.nodes.sort(compare_fitness).sort(compare_is_active);
-        const nodes = data.nodes.sort(compare_fitness).sort(compare_is_active);
+        const nodes = data.nodes.sort(compare_fitness);
          //make head0
         const table_header = document.createElement('tr');
         for(let prop in nodes[0]){
@@ -194,7 +195,14 @@ class Board {
             node_container_div.appendChild(node_div);
         }
         this.display.appendChild(node_container_div);
-        
+    }
+    update_display(data){
+        //at this point -- react?
+        //console.log(data);
+
+
+        this.update_meta_data_display(data.game_stats)
+     //   this.update_node_data_display(data);
     }
 	blank() {
 		this.ctx.fillStyle = this.bg_color;
@@ -211,15 +219,18 @@ class Board {
         this.height = data.game_stats.height;
         this.width = data.game_stats.width;
     }
-    async next_image(data){
-
-        console.log("next image called")
+    next_image(data){
         this.set_height_and_width(data)
+
+
         this.data=data;
         this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.target_node);
         this.draw_quad_tree(data.quad_tree)
         this.render_count=data.render_count;
-        this.update_display(data);
+        console.time("next_image", data.triangles)
+
+        this.update_display(data); //time for a framework react... redux?
+        console.timeEnd("next_image")
 
     }
 
