@@ -152,12 +152,6 @@ class Graph_Node {
         const close_nodes = this.ref.quadTree.find(this,this.ref.catch_range*3);    
 		this.make_connections(close_nodes, cr);
         this.move(close_nodes);
-
-
-		//console.time("update_cell");
-
-		//console.timeEnd("update_cell");
-
         this.break_connections(mr);
         this.update_r();
         this.update_color();
@@ -170,9 +164,7 @@ class Graph_Node {
         this.connections.forEach(other_node=>this.disconnect(other_node));
     }
     set_is_activated(bool){
-		if(!bool){
-			this.fitness=1
-		}
+		this.fitness=1
         this.is_activated=bool;
     }
 	isLargest() {
@@ -212,11 +204,3 @@ class Graph_Node {
 	}
 }
 export default Graph_Node
-
-const pad = (val,pamount,what)=>{
-	val=String(val)
-	while(val.length<pamount){
-		val=what+val
-	}
-	return val
-}

@@ -21,7 +21,7 @@ const io = new Server(server, {
 
 
 
-const game = new Controller(600,1920,1080);
+const game = new Controller(250,1920,1080);
 
 const port =3000;
 

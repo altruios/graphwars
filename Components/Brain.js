@@ -44,8 +44,10 @@ class Brain {
 	}
 	become_child_of(brain,other_brain){
 		this.generation_number = this.host.ref.game_count;
-
-		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i]))
+		for(let m=0;m<this.matrix.length;m++){
+			this.matrix[m]._child(brain.matrix[m], other_brain.matrix[m])
+		}
+//		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i]))
 	}
 	copy_from(template) {
 		this.generation_number = this.host.ref.game_count;

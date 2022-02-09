@@ -54,12 +54,6 @@ class Cell {
 		this.mutation = value;
 		this.mutation = Math.min(1, (Math.max(-1, this.mutation)))
 	}
-	mutateWeights(chance) {
-		this.weights = this.weights.map(x => this.mutation_rate_modification(x, chance));
-	}
-	mutateBias(chance) {
-		this.bias = this.mutation_rate_modification(this.bias, chance);
-	}
 	_copy(cell) {
 
 		if (cell == undefined) {
@@ -75,13 +69,7 @@ class Cell {
 		const main_doner = doner_bool?cell:oCell; //fiter cell is main doner
 		const secondary_doner = doner_bool?oCell:cell;
 		this.bias = (main_doner.bias*2+secondary_doner.bias)/3 //bias is weighted average of main doner
-		this.weights=this.weights.map((x,i)=>i%3==0?(secondary_doner.weights[i]):main_doner.weights[i])
-	}
-	mutation_rate_modification(value, chance) {
-		if (Math.random < chance) {
-			return this.between_neg1_and_1(this.mutation+value); //pos or neg mutation -1,1
-		}
-		return value;
+		this.weights=this.weights.map((x,i)=>i%2==0?(secondary_doner.weights[i]):main_doner.weights[i])
 	}
 	between_neg1_and_1(value){
 		return Math.min(1,Math.max(-1,value))
@@ -107,7 +95,7 @@ class Cell {
     mutate_next(p,g){
         this.mutate_bias(p,g)
         this.mutate_weights(p,g);
-        Math.sin(this.mutation_rate)>0?this.mutation_advance():this.mutation_reduce();
+        Math.sin(this.mutation_counter*this.mutation)>0?this.mutation_advance():this.mutation_reduce();
     }
     mutate_bias(p,g){
         if(g>Math.random()){
@@ -116,13 +104,13 @@ class Cell {
     }
 
     mutate_weights(p,g){
-        this.weights.forEach(weight=>(g>Math.random())?weight=this._mutate(weight,p):null)
+
+        this.weights=this.weights.map(weight=>(g>Math.random())?this._mutate(weight,p):weight)
     }
     _mutate(val,p){
 		this.mutation_counter++;
-		//console.log(p,val,"p and val, mutation: ", this.mutation_counter)
 		const sign =Math.random()>0.5?1:-1; 
-		return Math.max(Math.min(sign*p+val,1),-1)
+		return Math.max(Math.min(this.mutation*p+sign*val,1),-1)
 
     }
 }

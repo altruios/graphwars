@@ -100,16 +100,15 @@ class Controller {
 				const eatee = node.r < other_node.r ? node : other_node;
 				const distance = eater.get_distance_between_edges(eatee);
 				if (distance <= 0 && this.get_living_nodes().length > 0) {
+					eatee.fitness=1;
+					eater.fitness=1;
 					if (eater.type == eatee.type) {
 						eater.change_type();
-						eater.fitness=1//-=Math.abs(eater.fitness-eatee.fitness);
-						eatee.fitness=1;
-						eatee.set_is_activated(false);
+						eater.impulse_away_from(eatee);
+		//				eatee.set_is_activated(false);
 					} else {
 						eatee.change_type();
 						eatee.impulse_away_from(eater);
-                        eatee.fitness=1;
-						eater.fitness=1;
 					}
 				}
 			})
@@ -248,7 +247,6 @@ ${pad("",100,"#")}`);
 		
 		this.set_next_brains(this.get_mating_pool(),winning_node);
 		this.reactivate_nodes();
-
         this.reset_nodes_fitness();
 	}
 	get_mating_pool(){
@@ -268,48 +266,57 @@ ${pad("",100,"#")}`);
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node){
-		console.log("test!",this.collections[0].Brain.matrix[89].weights[2])
-		this.collections.forEach(node=>{
-
-			if(!(node.id==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
-				const p = node.fitness/this.best_fitness;
-				const g = 0.01;//node.fitness/((this.best_fitness+winning_node.fitness)/2);
-				if(mating_pool.length<=0){ //low survival rate - something weird - double g
-					node.Brain.copy_from(this.champion.Brain)
-					node.mutate_next(p,g*2)
-				}else{
-					const p1 = Math.floor(Math.random()*(mating_pool.length-1))					
+		console.log("test!1",this.collections[0].Brain.matrix[89].weights[2])
+		if(mating_pool.length<=10){ //low survival rate - something weird - double g
+			this.collections.forEach(node=>{
+				node.Brain.copy_from(this.champion.Brain)
+				node.mutate_next(p,g*2)
+			})
+		}else{
+			for(let i=0;i<this.collections.length;i++){
+				const node = this.collections[i];
+				if(this.collections[i].id!==winning_node.id){
+//p value weights in perceptron cells change by
+					//g is guard against mutation value - a higher number =  more likely to mutate
+					const p = this.collections[i].fitness/this.best_fitness;
+					const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
+					const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
 					const parent_1 = mating_pool[p1];
-
 
 					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
 					let parent_2 = mating_pool[p2];
-
 					while(parent_1.id==parent_2.id){ //no cross breed
 						p2=Math.floor(Math.random()*(mating_pool.length-1))
 						parent_2 = mating_pool[p2];
-					}
+					}	
+					this.collections[i].Brain.become_child_of(parent_1.Brain,parent_2.Brain);
+					this.collections[i].mutate_next(p,g)		
+				}
+			}
+		}
 
-			//		console.log(parent_1.id,"and",parent_2.id,"have a child upon the corpse of:",node.id);
-					const dna_str1 = parent_1.get_dna()
-					const dna_str2 = parent_2.get_dna()
-					const dna_str3 = node.get_dna();
+/*
+			this.collections.forEach(node=>{
+				if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
+					//p value weights in perceptron cells change by
+					//g is guard against mutation value - a higher number =  more likely to mutate
+					const p = node.fitness/this.best_fitness;
+					const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
+					const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
+					const parent_1 = mating_pool[p1];
+
+					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
+					let parent_2 = mating_pool[p2];
+					while(parent_1.id==parent_2.id){ //no cross breed
+						p2=Math.floor(Math.random()*(mating_pool.length-1))
+						parent_2 = mating_pool[p2];
+					}	
 					node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
-					const dna_str4 = node.get_dna()
-			//		console.log(dna_str4==dna_str3,"compare child dna")
-					const changes = Array.from(dna_str4).map((gene,i)=>gene==dna_str3[i]?dna_str2[i]==dna_str1[i]?"?":gene==dna_str1[i]?"1":"2":"_")
-			//		console.log(changes.join(""));
-
-
-					node.mutate_next(p,g)
-
-			}
-			}else{
-				node.Brain.copy_from(this.champion.Brain);
-			}
-		})
-
-
+					node.mutate_next(p,g)		
+				}
+			})
+		}
+		*/
 		console.log("test!2",this.collections[0].Brain.matrix[89].weights[2],"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 	}
     reset_nodes_fitness(){
