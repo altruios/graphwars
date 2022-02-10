@@ -105,10 +105,12 @@ class Controller {
 					if (eater.type == eatee.type) {
 						eater.change_type();
 						eater.impulse_away_from(eatee);
-		//				eatee.set_is_activated(false);
+						eatee.set_is_activated(false);
 					} else {
 						eatee.change_type();
 						eatee.impulse_away_from(eater);
+						eater.set_is_activated(false);
+
 					}
 				}
 			})
@@ -266,19 +268,31 @@ ${pad("",100,"#")}`);
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node){
-		console.log("test!1",this.collections[0].Brain.matrix[89].weights[2])
-		if(mating_pool.length<=10){ //low survival rate - something weird - double g
+		const unique_mates = mating_pool.reduce((acc,x)=>{
+			if(!acc.find(y=>y.id==x.id)){
+				acc.push(x)
+			}
+			return acc
+		},[])
+		const target = this.collections[0];
+		const test_weights = target.Brain.matrix[89].weights.slice(2,5);
+		console.log("test!1",test_weights,unique_mates.length)
+		if(unique_mates.length<=20){ //low survival rate - something weird - double g
+			console.log("low survival rate - weird?");
 			this.collections.forEach(node=>{
-				node.Brain.copy_from(this.champion.Brain)
+
+				const p = 1-node.fitness/this.best_fitness;
+				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
+			
+				node.Brain.become_child_of(this.champion.Brain,node.Brain)
 				node.mutate_next(p,g*2)
 			})
 		}else{
 			for(let i=0;i<this.collections.length;i++){
-				const node = this.collections[i];
 				if(this.collections[i].id!==winning_node.id){
-//p value weights in perceptron cells change by
+					//p value weights in perceptron cells change by
 					//g is guard against mutation value - a higher number =  more likely to mutate
-					const p = this.collections[i].fitness/this.best_fitness;
+					const p = 1-this.collections[i].fitness/this.best_fitness;
 					const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
 					const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
 					const parent_1 = mating_pool[p1];
@@ -317,7 +331,7 @@ ${pad("",100,"#")}`);
 			})
 		}
 		*/
-		console.log("test!2",this.collections[0].Brain.matrix[89].weights[2],"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+		console.log("test!2", target.Brain.matrix[89].weights.slice(2,5),"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 	}
     reset_nodes_fitness(){
         this.collections.forEach(node=>node.fitness=1)
@@ -328,23 +342,31 @@ ${pad("",100,"#")}`);
     scatter_nodes(){
         this.collections.forEach(node=>node.scatter())
     }
-	fuck_over_wall_huggers(){
-		this.collections.forEach(c=>{
+	fuck_over_wall_huggers(ln){
+		let x=0;
+		ln.forEach(c=>{
 			if(c.x<=20||c.y<=20||c.x>=this.width-20||c.y>=this.height-20){
-				c.fitness=0.1;
+				c.set_is_activated(false);
+				x++
 			}
+			
 		})
+		console.log(x,"were too close to the wall out of ",ln.length, "only", ln.length-x,"survivers")
+		return ln
 	}
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
-		console.log("fitest node is:");
-		this.fuck_over_wall_huggers()
 
-
+		const survivers = this.get_living_nodes();
+		this.fuck_over_wall_huggers(survivers)
 		const winners = this.get_living_nodes();
+
+
 		this.best_living_count=winners.length>this.best_living_count?winners.length:this.best_living_count;
 		const fitest = this.find_fitest_node(winners);
 		fitest.reward();
+		console.log("fitest node is:");
+
 		console.log(fitest.id);
 		console.log(fitest.fitness.toFixed(1), "vs champion of:", this.best_fitness.toFixed(1))
 		console.log("this was the fitest node: ",fitest.win_count)

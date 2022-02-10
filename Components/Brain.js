@@ -15,15 +15,18 @@ class Brain {
 		//console.log("\n\n\n\n\n\n\n",this.last_fitness,)
         this.init_weights();        
 	}
-    no_function_copy(){
-        return{
+    no_function_copy(ref){
+		const obj={
             generation_number:this.generation_number,
             mutation_value:this.mutation_value(),
             height:this.height,
             last_move_vec:this.last_move_vec,
             last_fitness:this.last_fitness,
-			matrix:this.matrix.map(c=>c.no_function_copy())     
-        }
+			host:ref
+		}
+		obj.matrix=this.matrix.map(c=>c.no_function_copy(obj));   
+			
+		return obj
     }
     calc_input_row_count(){
         return 8*8+8 //8 closest, 8 props of each. and 8 props of self
@@ -45,7 +48,7 @@ class Brain {
 	become_child_of(brain,other_brain){
 		this.generation_number = this.host.ref.game_count;
 		for(let m=0;m<this.matrix.length;m++){
-			this.matrix[m]._child(brain.matrix[m], other_brain.matrix[m])
+			this.matrix[m] = this.matrix[m]._child(brain.matrix[m], other_brain.matrix[m])
 		}
 //		this.matrix.forEach((cell,i)=>cell._child(brain.matrix[i],other_brain.matrix[i]))
 	}

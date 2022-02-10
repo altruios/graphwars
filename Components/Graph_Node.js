@@ -38,7 +38,7 @@ class Graph_Node {
 	}
 	}
     no_function_copy(){
-        return {
+		let obj ={
 			id:this.id,
 			win:this.win_count,
 			x:this.x, 
@@ -55,6 +55,8 @@ class Graph_Node {
 			scream:this.Brain.get_scream(),
 			Brain:this.Brain.no_function_copy()
 		}
+		obj.Brain.host=obj
+		return obj
     }
     scatter(){
         this.connections.forEach(other_node=>this.disconnect(other_node))

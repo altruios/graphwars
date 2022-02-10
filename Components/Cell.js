@@ -18,7 +18,7 @@ class Cell {
 		this.mutation_counter = 0;
 		this.height = height;
 	}
-	no_function_copy(){
+	no_function_copy(ref){
 		return {
 			id:this.id.toString(),
 			connections_forward:this.connections_forward.map(x=>x.id.toString()),
@@ -29,7 +29,8 @@ class Cell {
 			mutation:this.mutation,
 			is_answer_row:this.is_answer_row, 
 			mutation_counter:this.mutation_counter,
-			height:this.height
+			height:this.height,
+			Brain:ref,
 		}
 	}
 	get_weights() {
@@ -69,7 +70,8 @@ class Cell {
 		const main_doner = doner_bool?cell:oCell; //fiter cell is main doner
 		const secondary_doner = doner_bool?oCell:cell;
 		this.bias = (main_doner.bias*2+secondary_doner.bias)/3 //bias is weighted average of main doner
-		this.weights=this.weights.map((x,i)=>i%2==0?(secondary_doner.weights[i]):main_doner.weights[i])
+		this.weights=this.weights.map((x,i)=>i%3==0?(secondary_doner.weights[i]):main_doner.weights[i])
+		return this
 	}
 	between_neg1_and_1(value){
 		return Math.min(1,Math.max(-1,value))
