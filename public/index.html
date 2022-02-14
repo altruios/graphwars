@@ -6,6 +6,7 @@
         <div id="left">
 
             <canvas id="canvas" height="420" width="420"></canvas>
+            <canvas id="canvas2" height="420" width="420"></canvas>
             <div id="hdisplay"></div>
     
         </div>
@@ -19,10 +20,11 @@
     <script>
         var socket = io();
         const canvas = document.getElementById('canvas')
+        const canvas2 = document.getElementById('canvas')
         const display = document.getElementById('display');
         const hdisplay = document.getElementById('hdisplay');
        //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/
-        const board = new Board(canvas,display,hdisplay)
+        const board = new Board(canvas,display,hdisplay,canvas2)
         console.log(socket,board,"render steped")
         socket.on("image",(d)=>{
             const data = JSON.parse(d);

@@ -60,7 +60,7 @@ class QuadTree{
             return true
         }else{
             if(this.divided==false){
-                this.subdivide(point)
+                this.subdivide()
                 this.divided=true;
             }
             if(this.tl.insert(point)){
@@ -77,7 +77,7 @@ class QuadTree{
             }
         }
     }
-    subdivide(point){
+    subdivide(){
         const x=this.x;
         const y=this.y;
         const w=this.w/2;

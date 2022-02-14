@@ -1,5 +1,5 @@
 class Board {
-	constructor(canvas,display,hdisplay) {
+	constructor(canvas,display,hdisplay,canvas2) {
         this.display=display;
         this.header_display=hdisplay
 		this.height = canvas.height;
@@ -11,15 +11,23 @@ class Board {
 		this._draw_vision_flag = false;
 		this.bg_color = "#000000";
         this.render_speed=30;
+
+        this.s_canvas=canvas2;
+        this.s_ctx=canvas2.getContext("2d");
+        this.s_width=canvas2.width;
+        this.s_height=canvas2.height;
 	}
 
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
-	draw(living_nodes,triangles,quad_tree,target_node) {
+    draw_brain(brain){
+            console.log(brain);    
+    }
+	draw(living_nodes,triangles,brain) {
         console.time("draw")
         this.blank();
-
+        this.draw_brain(brain);
 		triangles.forEach(trig => {
             let trig_nodes = trig.map(x=>living_nodes.find(y=>y.id==x));
             
@@ -224,7 +232,7 @@ class Board {
 
 
         this.data=data;
-        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.target_node);
+        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.brain);
         this.draw_quad_tree(data.quad_tree)
         this.render_count=data.render_count;
         console.time("next_image", data.triangles)

@@ -1,7 +1,7 @@
 import express from 'express'
 import {Server} from 'socket.io'
 import http from 'http'
-import Controller from './Components/Controller.js'
+import Controller from './Components/Neat_controller.js'
 import cors from 'cors'
 const app = express();
 
@@ -20,8 +20,18 @@ const io = new Server(server, {
 
 
 
-
-const game = new Controller(250,1920*2,1080*2);
+const game_options={
+  node_count: 250,
+	height: 1080*2,
+	width:1920*2,
+  render_speed:7,
+  max_render_count: 3000,
+	epoc_level:910000,
+  notice_range:100,
+	visual_range: 200,
+  species_threshold:4
+}
+const game = new Controller(game_options);
 
 const port =3000;
 

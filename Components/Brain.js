@@ -6,7 +6,7 @@ class Brain {
 		this.matrix = []
 		this.mutation_counter = 0;
 		this.host = host;
-        this.height=9;
+        this.height=3;
 		this.last_move_vec = [0, 0, 0, 0];
 		this.last_fitness = this.host.fitness;
 		this.init_matrix();
@@ -34,7 +34,7 @@ class Brain {
 	init_matrix() {
 		this.matrix = [];
 		const height = this.height+1;
-		const breadth = 13;
+		const breadth = 6;
 		const answer_layer = 5; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
 		const input_layer = this.calc_input_row_count();//
 		for (let i = 0; i < height; i++) {

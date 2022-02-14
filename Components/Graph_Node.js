@@ -1,4 +1,4 @@
-import Brain from './Brain.js'
+import Neat_Brain from './Neat_Brain.js'
 import {do_to_co} from '../utilities/do_to_co.js';
 class Graph_Node {
 	constructor(x, y, type, ref,id) {
@@ -14,11 +14,13 @@ class Graph_Node {
 		this.connections = [];
 		this._deletable = false;
         this.is_activated=true;
-		this.Brain = new Brain(this, null);
+		this.Brain = new Neat_Brain(this, null);
 		this.Brain.connect_host(this);
 		this.fitness = 1;
         this.last_performance = 0;
         this.win_count=0;
+		this.notice_range=100;
+		this.vision_range=200;
 	}
 	shallow_copy(){
 		return {id:this.id,
@@ -37,7 +39,7 @@ class Graph_Node {
 
 	}
 	}
-    no_function_copy(){
+    copy_data(){
 		let obj ={
 			id:this.id,
 			win:this.win_count,
@@ -51,9 +53,7 @@ class Graph_Node {
 			last_p:this.last_performance*100,
 			last_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
 			last_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
-			mutation_value:this.Brain.mutation_value(),
-			scream:this.Brain.get_scream(),
-			Brain:this.Brain.no_function_copy()
+			Brain:this.Brain.copy_data()
 		}
 		obj.Brain.host=obj
 		return obj
@@ -68,11 +68,6 @@ class Graph_Node {
     mutate_next(p,g){
         this.last_performance=p;
         this.Brain.mutate_next(p,g);
-        
-    
-    }
-    set_brain(brain){
-        this.Brain=brain?brain.next_generation_mutate() : new Brain(this,null)
     }
 	update_fitness(amount) {
 		this.fitness += amount;
@@ -150,11 +145,16 @@ class Graph_Node {
 		other_node.connections = other_node.connections.filter(x => x != this);
 		this.connections = this.connections.filter(x => x != other_node);
 	}
-	update(width, height, cr, mr) {
-        const close_nodes = this.ref.quadTree.find(this,this.ref.catch_range*3);    
-		this.make_connections(close_nodes, cr);
+	update() {
+		const width = this.ref.width;
+		const height = this.ref.height;
+		if(this.notice_range>this.vision_range){
+			this.notice_range=this.vision_range;
+		}
+        const close_nodes = this.ref.quadTree.find(this, this.vision_range);    
+		this.make_connections(close_nodes, this.notice_range);
         this.move(close_nodes);
-        this.break_connections(mr);
+        this.break_connections(this.vision_range);
         this.update_r();
         this.update_color();
         this.boundries(width, height);
@@ -163,6 +163,7 @@ class Graph_Node {
     }
     deactivate(){
 		this.fitness=1;
+		this.is_activated=false;
         this.connections.forEach(other_node=>this.disconnect(other_node));
     }
     set_is_activated(bool){
@@ -203,6 +204,9 @@ class Graph_Node {
 			str+= (bm[i].bias>0?"C":"D")
 		}
 		return str
+	}
+	become_child_of(b1,b2){
+		this.Brain = new Neat_Brain(this,b1,b2)
 	}
 }
 export default Graph_Node

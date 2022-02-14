@@ -3,11 +3,11 @@ import ID from './ID.js'
 import {do_to_co} from '../utilities/do_to_co.js';
 import QuadTree from '../utilities/QuadTree.js'
 const node_ID = ID();
-class Controller {
-	constructor(count,width,height) {
-		this.node_count = count;
-		this.height = height;
-		this.width = width;
+class Neat_Controller{
+	constructor(options) {
+		this.node_count = options.node_count;
+		this.height = options.height;
+		this.width = options.width;
 		this.last_game_data=null;
 		this.collections = [];
 		this.winning_nodes=[];//save of winners in last games
@@ -16,11 +16,12 @@ class Controller {
 		this.quadTree = new QuadTree(0,0,this.width,this.height)
 		this.best_fitness = 1;
 		this.stop=false;
-        this.max_render_count = 3000;
-		this.epoc_level=910000;
-        this.catch_range = 100;
-		this.render_speed=7;
-		this.max_range = 200;
+        this.render_speed=options.render_speed;
+        this.max_render_count = options.max_render_count;
+		this.epoc_level=options.epoc_level;
+        this.notice_range = options.notice_range;
+		this.visual_range = options.visual_range;
+        this.species_threshold=options.species_threshold;
 		this.best_living_count=0;
 		this.render_count = 0;
 		this.game_count = 0;
@@ -32,6 +33,7 @@ class Controller {
 		this.run.bind(this);
 		this.socket=null;
 		}
+		
 		set_socket(socket){
 			console.log("setting socket");
 			this.socket=socket;
@@ -47,41 +49,28 @@ class Controller {
 
 			
 		}
+
 	init_collection() {
+		console.log("init collection")
 		for (let i = 0; i < this.node_count; i++) {
 			this.add_node()
 		}
-		this.fitest_node=this.collections[0]
-		this.champion=this.collections[0].no_function_copy();
+		this.fitest_node=this.collections[0];
+		this.champion=this.collections[0];
 	}
-	set_catch(num) {
-		this.catch_range = num;
-	}
-	set_max_connection_length(num) {
-		this.max_range = num;
-	}
+	set_catch(num) {this.catch_range = num;}
+	set_max_connection_length(num) {this.max_range = num;}
 	step(living_nodes) {
 		this.update_quad_tree(living_nodes);
-
-
 		this.update_collections(living_nodes);
+
 		this.emit();
-		
+
 	}
-	update_quad_tree(living_nodes){
-		this.quadTree.reset_graph(living_nodes);
-	}
+	update_quad_tree(living_nodes){this.quadTree.reset_graph(living_nodes);}
 	update_collections(livingNodes) {
-
-		livingNodes.forEach(node => node.update(this.width, this.height, this.catch_range, this.max_range))
-
-
+		livingNodes.forEach(node => node.update())
 		this.handle_eat(livingNodes);
-		livingNodes.forEach(node => !node.is_activated ? node.deactivate() : null)
-
-
-
-
 	}
 	reward_triangles(triangles) {
 		triangles.forEach(triangle => {
@@ -105,12 +94,11 @@ class Controller {
 					if (eater.type == eatee.type) {
 						eater.change_type();
 						eater.impulse_away_from(eatee);
-						eatee.set_is_activated(false);
+						eatee.deactivate();
 					} else {
 						eatee.change_type();
 						eatee.impulse_away_from(eater);
-						eater.set_is_activated(false);
-
+						eater.deactivate();
 					}
 				}
 			})
@@ -153,44 +141,30 @@ class Controller {
 		const randx = Math.floor(Math.random() * this.width);
 		const randy = Math.floor(Math.random() * this.height);
 		const randt = Math.random() > 0.3 ? "A" : Math.random() > 0.3 ? "B" : "C";
+		console.time("pushnode");
 		this.collections.push(new Node(randx, randy, randt, this, node_ID.next().value));
+		console.timeEnd("pushnode");
+		console.count("x");
 	}
-
-	find_fitest_node(nodes){
-		return nodes.sort((a,b)=>b.fitness-a.fitness)[0]
-
-	}
-    get_living_nodes(){
-		//debug
-		//return this.collections
-        return this.collections.filter(x=>x.is_activated)
-    }
+	find_fitest_node(nodes){return nodes.sort((a,b)=>b.fitness-a.fitness)[0]}
+    get_living_nodes(){return this.collections.filter(x=>x.is_activated)}
 	reward(living_nodes){
 		living_nodes.forEach(node=>node.update_fitness(0.01));
 		const triangles = this.get_all_triangles(living_nodes);
 		this.reward_triangles(triangles)
-
 	}
 	render() {
-
         const living_nodes = this.get_living_nodes();
 		this.reward(living_nodes);
-			
-
 		this.step(living_nodes);
-
-
 		this.render_count++;
-		
 	} 
 	engine(that){
 		console.log("starting engine \n\n")
 		setInterval(()=>{
-			
 			const startTime = Date.now();
 			that.run(that);
 			const time_end=pad(Date.now() - startTime,3," ")
-			
 			const fitest_node = that.find_fitest_node(that.get_living_nodes());
 			const write_out={
 				exists:false
@@ -213,14 +187,9 @@ ${pad("",100,"#")}
 ##  ${pad(that.get_average_fitness().toFixed(2),11," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##
 ${pad("",100,"#")}
-${pad("",100,"#")}`);	
-					
-			}
-			
-
-				
-			},this.render_speed)
-		
+${pad("",100,"#")}`);				
+			}	
+		},this.render_speed)
 	}
 	get_average_fitness(){
 		const sum = this.collections.reduce((acc,item)=>{acc+=item.fitness;return acc},0)
@@ -233,9 +202,6 @@ ${pad("",100,"#")}`);
 		if (that.render_count > that.max_render_count) that.evaluate()
 		else that.render();
 	}
-	clear_all_nodes() {
-		this.collections = [];
-	}
 	new_game(winning_node) {
 		this.render_count = 0;
 		this.game_count++;
@@ -244,16 +210,61 @@ ${pad("",100,"#")}`);
 		this.last_average_fitness=average_fitness;
 		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
 		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
-		this.champion = fitness_win ? winning_node.no_function_copy():this.champion;
+		this.champion = fitness_win ? winning_node:this.champion;
         this.scatter_nodes();
-		
-		this.set_next_brains(this.get_mating_pool(),winning_node,this.champion);
+		this.neat_algorithm(winning_node); 
 		this.reactivate_nodes();
-        this.reset_nodes_fitness();
 	}
+    neat_algorithm(wn){
+        const pool = this.get_mating_pool();
+        this.set_next_brains(pool,wn,this.champion)
+    };
+    seperate_into_species(){
+        const species_pool=[];
+        let ln = this.get_living_nodes();
+        while(ln.length>0){
+			console.log("ln lneght",ln.length);
+            const random_species_sample=ln[Math.floor(Math.random()*ln.length-1)]
+			species_pool.push([random_species_sample]);//new species by some random living node
+			ln=ln.filter(x=>x!=random_species_sample);
+			const removed=[];
+            for(let i=0;i<ln.length;i++){
+                if(this.determin_species(random_species_sample,ln[i])){ //template 
+					const li = species_pool.length-1; //last index
+                    species_pool[li].push(ln[i])
+					ln[i].species=li;
+					removed.push(ln[i].id);
+				}
+            }
+            ln=ln.filter(x=>!removed.some(y=>y==x.id));//remove those that were pushed in the for loop.
+        }
+        return species_pool;
+    }
+    determin_species(template,sample){
+        if(! template)return true //first 1 
+        //cd = e+d+w|
+		
+        const top_sample_in_id = sample.Brain.connections.sort((a,b)=>b.in_id-a.in_id)[0].in_id;
+        const e = template.connections.reduce((acc,con)=>acc+(con.in_id>top_sample_in_id?1:0),0);
+        const d = template.connections.reduce((acc,con)=>acc+(sample.  connections.find(c=>c.in_id==con.in_id)?0:1),0)+
+                    sample.connections.reduce((acc,con)=>acc+(template.connections.find(c=>c.in_id==con.in_id)?0:1),0)
+        const w = template.connections.reduce((acc,con)=>acc+Math.abs(con.weight,(sample.  connections.find(c=>c.in_id==con.in_id)?.weight||0)),0)
+        const cd = e + d + w;
+		console.log(this.species_threshold-cd, e,d,w);
+
+        return this.species_threshold-cd>0;
+
+    }
 	get_mating_pool(){
+        const mating_pond = this.seperate_into_species();
+        const mating_nodes = mating_pond.reduce((acc,species)=>{
+            const surviving_half = species.sort((a,b)=>a.fitness-b.fitness).slice(Math.floor((species.length-1)/2))
+            surviving_half.forEach(sh=>acc.push(sh))
+            return acc;
+        },[])
+
 		const mating_pool=[];
-		this.get_living_nodes().forEach(node=>{
+		mating_nodes.forEach(node=>{
 			let mate_fitness = do_to_co(node.fitness,[0.1,this.champion.fitness],[0.001,100])
 			for(let i =0;i<mate_fitness;i++){
 				mating_pool.push(node);
@@ -264,68 +275,38 @@ ${pad("",100,"#")}`);
 			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
 			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
 		}
+		console.log(mating_pond.map(r=>r.map(x=>`${x.id},${x.fitness}`)));
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node,champion){
-		const unique_mates = mating_pool.reduce((acc,x)=>{
-			if(!acc[0].find(y=>y.id==x.id)){
-				acc[0].push(x)
-				acc[1].push([x])
-			}else{
-				const row = acc[1].find(z=>z[0].id==x.id);
-				row.push(x)
-				acc[1].find(z=>z[0].id==x.id).push(x)
-			}
-			return acc
-		},[[],[]])
-		const target = this.collections[11].Brain.matrix[80];
-		const test_weights = target.weights;
-		console.log("test!1",test_weights,unique_mates[0].length,unique_mates[1].map(x=>`${pad(`${x[0].id}`,8," ")}, ${pad(`${Math.floor(x[0].fitness)}:f`,8," ")}, ${pad(`${((x.length/mating_pool.length)*100).toFixed(0)}:d`,8," ")}, ${pad(`${x.length}:raw count`,13," ")}`))
-		if(unique_mates[0].length<=10){ //low survival rate - something weird - double g
-			console.log("low survival rate - weird?");
-			this.collections.forEach(node=>{
+		console.log("mating pool leng",mating_pool.length);
+        this.collections.forEach((node,i,arr)=>{
+            if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
+                if(i==0 || (i==1 && winning_node.id==arr[0].id)){
+                    node.become_child_of(this.champion.Brain,this.champion.Brain);
+                    return;
+                }
+                //p value weights in perceptron cells change by
+                //g is guard against mutation value - a higher number =  more likely to mutate
+                const p = node.fitness/this.best_fitness;
+                const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
+                const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
+                const parent_1 = mating_pool[p1];
 
-				const p = 1-node.fitness/this.best_fitness;
-				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
-			
-				node.Brain.become_child_of(this.champion.Brain,node.Brain)
-				node.mutate_next(p,g*2)
-			})
-		}else{
-			this.collections.forEach((node,i,arr)=>{
-				if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
-					if(i==0 || (i==1 && winning_node.id==arr[0].id)){
-						node.Brain.become_child_of(this.champion.Brain,this.champion.Brain);
-					}
-					//p value weights in perceptron cells change by
-					//g is guard against mutation value - a higher number =  more likely to mutate
-					const p = node.fitness/this.best_fitness;
-					const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
-					const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
-					const parent_1 = mating_pool[p1];
+				let filtered_pool = mating_pool.filter(x=>x.id!=parent_1.id);
+                let p2 = Math.floor(Math.random()*(filtered_pool.length-1))
+                let parent_2 = filtered_pool[p2]||this.champion;
+				console.log(mating_pool.map(x=>x.id));
+				console.log("changed p2",parent_1.id,parent_2.id);
+                node.become_child_of(parent_1.Brain,parent_2.Brain);
+                node.mutate_next(p,g)		
+            }
+        })
+		console.log("mating finsihed");
 
-					let p2 = Math.floor(Math.random()*(mating_pool.length-1))
-					let parent_2 = mating_pool[p2];
-					while(parent_1.id==parent_2.id){ //no cross breed
-						p2=Math.floor(Math.random()*(mating_pool.length-1))
-						parent_2 = mating_pool[p2];
-					}	
-					node.Brain.become_child_of(parent_1.Brain,parent_2.Brain);
-					node.mutate_next(p,g)		
-				}
-			})
-		}
-		console.log("test!2", target.weights,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 	}
-    reset_nodes_fitness(){
-        this.collections.forEach(node=>node.fitness=1)
-    }
-    reactivate_nodes(){
-        this.collections.forEach(node=>node.set_is_activated(true));
-    }
-    scatter_nodes(){
-        this.collections.forEach(node=>node.scatter())
-    }
+    reactivate_nodes(){this.collections.forEach(node=>node.set_is_activated(true))}
+    scatter_nodes(){this.collections.forEach(node=>node.scatter())}
 	fuck_over_wall_huggers(ln){
 		let x=0;
 		ln.forEach(c=>{
@@ -367,13 +348,12 @@ ${pad("",100,"#")}`);
 	full_json_data(){
 		const game_stats = this.get_game_stats();		
 		const nodes = this.collections.map(x=>x.shallow_copy());
+		const brain = this.collections[0].Brain.copy_data();
 		const triangles = this.get_all_triangles(this.get_living_nodes()).map(x=>x.map(y=>y.id));
 
-		return {game_stats,nodes,triangles}	
+		return {game_stats,nodes,triangles,brain}	
 	}
-	get_selected_node(selected_id){
-		return this.collections.find(x=>x.id==selected_id)
-	}
+	get_selected_node(selected_id){return this.collections.find(x=>x.id==selected_id)}
 	get_node_info(selected_id){
 		const node = this.get_selected_node(selected_id);
 		return node.no_function_copy()
@@ -400,4 +380,4 @@ const pad = (val,pamount,what)=>{
 	}
 	return val
 }
-export default Controller
+export default Neat_Controller
