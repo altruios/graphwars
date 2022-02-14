@@ -28,34 +28,35 @@ class Board {
     draw_brain(brain){
         //    console.log(brain);
         this.s_blank();
-            
-        const inputLayer = brain.cells.filter(x=>x.is_input_layer==true)
-        const brain_drawer=(cell_arr)=>{
-            if(!cell_arr)return
-            console.log(cell_arr.length,"is length");
-            
-            cell_arr.forEach((start_cell,i,arr)=>{
-                this.s_ctx.fillStyle=start_cell.activation_value>0?"#ff0000":"#0000ff";
-                const x =i * arr.length ;
-                console.log(x)
+        console.log(brain.cells.length,"is size");
+        brain.cells.forEach((cell,i,arr)=>{
+            const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
 
-                const y= 100*start_cell.layer_index;
-                this.s_ctx.fillRect(x,y,20,20)
-                const connections_next = brain.connections.filter(x=>x.n1==start_cell.id).map(x=>brain.cells.find(y=>y.id==x.n2))
-                connections_next.forEach(conn=>{
-                    this.s_ctx.beginPath();
-                    this.s_ctx.moveTo(x,y);   
-                    const cx =conn.layer_number*arr.length/this.s_canvas.width ;
-                    const cy= 100*conn.layer_index;
-                    this.s_ctx.lineTo(cx,cy);
-                    this.s_ctx.stroke();
-                })
-                brain_drawer(connections_next);
-            })
-        }
-    brain_drawer(inputLayer)
+            this.s_ctx.fillStyle=cell.is_hidden_layer==true?cell.activation_value>0?"#ffff00":"#00ffff":cell.activation_value>0?"#ff0000":"#0000ff";
 
+                const x =cell.layer_index * (this.s_canvas.width/depth)+(this.s_canvas.width/depth)/3;
+                const y= cell.layer_number*this.s_canvas.height/16+50;
+                
+                this.s_ctx.fillRect(x,y,10,10)
+                cell.is_answer_layer==true?console.log(cell,y):null;
+        })
+        brain.connections.forEach((conn,i)=>{
+            const cell = brain.cells.find(x=>x.id==conn.n1);
+            const cell2 = brain.cells.find(x=>x.id==conn.n2);
+            const arr = brain.cells;
+            const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
+            const depth2 = arr.filter(x=>x.layer_number==cell2.layer_number).length;
 
+            const x1=cell.layer_index * (this.s_canvas.width/depth)  +5+(this.s_canvas.width/depth)/3
+            const x2=cell2.layer_index * (this.s_canvas.width/depth2)+5 +(this.s_canvas.width/depth2)/3
+            const y1= cell.layer_number*this.s_canvas.height/16+50+5
+            const y2= cell2.layer_number*this.s_canvas.height/16+50+5
+            this.s_ctx.strokeStyle=conn.weight>0?"#0000ff":"#ff0000";
+            this.s_ctx.beginPath();
+            this.s_ctx.moveTo(x1,y1);
+            this.s_ctx.lineTo(x2,y2);
+            this.s_ctx.stroke();
+        })
     }
 	draw(living_nodes,triangles,brain) {
         console.time("draw")

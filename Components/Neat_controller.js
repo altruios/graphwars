@@ -264,7 +264,10 @@ ${pad("",100,"#")}`);
         },[])
 
 		const mating_pool=[];
+		console.log(mating_nodes.length,"matting nodes length:");
+
 		mating_nodes.forEach(node=>{
+			console.log(node,"is node");
 			let mate_fitness = do_to_co(node.fitness,[0.1,this.champion.fitness],[0.001,100])
 			for(let i =0;i<mate_fitness;i++){
 				mating_pool.push(node);
@@ -275,7 +278,6 @@ ${pad("",100,"#")}`);
 			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
 			mating_pool.push(this.collections[Math.floor(Math.random()*this.collections.length)])
 		}
-		console.log(mating_pond.map(r=>r.map(x=>`${x.id},${x.fitness}`)));
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node,champion){
@@ -283,7 +285,7 @@ ${pad("",100,"#")}`);
         this.collections.forEach((node,i,arr)=>{
             if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
                 if(i==0 || (i==1 && winning_node.id==arr[0].id)){
-                    node.become_child_of(this.champion.Brain,this.champion.Brain);
+                    node.become_child_of(champion.Brain,champion.Brain);
                     return;
                 }
                 //p value weights in perceptron cells change by
@@ -292,11 +294,9 @@ ${pad("",100,"#")}`);
                 const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
                 const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
                 const parent_1 = mating_pool[p1];
-
 				let filtered_pool = mating_pool.filter(x=>x.id!=parent_1.id);
                 let p2 = Math.floor(Math.random()*(filtered_pool.length-1))
-                let parent_2 = filtered_pool[p2]||this.champion;
-				console.log(mating_pool.map(x=>x.id));
+                let parent_2 = filtered_pool[p2]||champion;
 				console.log("changed p2",parent_1.id,parent_2.id);
                 node.become_child_of(parent_1.Brain,parent_2.Brain);
                 node.mutate_next(p,g)		

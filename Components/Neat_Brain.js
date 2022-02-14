@@ -75,6 +75,7 @@ class Neat_Brain{
     }
     add_or_delete_weight(value,guard){
         if(Math.random()*value<guard){
+            console.log(value,guard,"changed structure - should be rare");
             if(Math.random()>.5){
                 this.add_weight()
             }else{
@@ -92,16 +93,21 @@ class Neat_Brain{
         const target = found[Math.floor(Math.random()*found.length-1)]
         target?.disable();
     }
-    sanity_check(){
+    sanity_check(added_node){
+        if( added_node.layer_number!=0&&
+            added_node.layer_number!=12) //more later
         return true
     }
     randomize_weight(value,guard){
         if(Math.random()>guard){
+            console.log("randomizeing weight",guard);
+
             this.connections[Math.floor(do_to_co(value,[-1,1],[0,this.connections.length-1]))].weight = Math.random()-1*2
         }
     }
     mutate_weight(value,guard){
         if(Math.random()>guard){
+            console.log("mutating weight",guard);
             const i = Math.floor(do_to_co(value,[-1,1],[0,this.connections.length-1]))
             const target_con = this.connections[i]
             target_con.weight=Math.max(Math.min(1,target_con.weight+value),-1)
@@ -110,6 +116,8 @@ class Neat_Brain{
     add_or_delete_cell(value,guard)
         {
         if(Math.random()>guard){
+            console.log(value,guard,"changed cell structure - should be rare");
+
             if(value>0){
                 this.add_cell()
             }else{
@@ -135,7 +143,7 @@ class Neat_Brain{
         for (let i = 0; i < 2; i++) {
 			const layer_breadth = i ==0?input_layer_length:answer_layer;
 			for (let j = 0; j < layer_breadth; j++) {
-				const cell = new Neat_Cell(i, this, j==0?0:12,i==0,layer_breadth==answer_layer); //x y info, on graph.
+				const cell = new Neat_Cell(i==0?0:12, this, j,i==0,layer_breadth==answer_layer); //x y info, on graph.
 				this.cells.push(cell);
 			}
 		}
@@ -176,17 +184,19 @@ class Neat_Brain{
         const random_chosen_connection = this.connections[Math.floor(Math.random()*this.connections.length)];
         const n1=random_chosen_connection.n1;
         const n2=random_chosen_connection.n2;
-        const node_layer = 
+        const node_layer = Math.floor(
             Math.min(n1.layer_number,n2.layer_number)+
-            Math.abs(n1.layer_number-n2.layer_number);
+            Math.abs(n1.layer_number-n2.layer_number)/2);
         const node_layer_index = this.get_hidden_cells().filter(x=>x.layer_number==node_layer).length;   
         const cell = new Neat_Cell(node_layer,this,node_layer_index,false,false);
-
-        this.cells.push(cell)
-        this.connections.push(new Connection(random_chosen_connection.n1,cell))
-        this.connections.push(new Connection(cell,random_chosen_connection.n2))
-        random_chosen_connection.disable();
-        this.sanity_check();
+        if(this.sanity_check(cell)){
+            this.cells.push(cell)
+            this.connections.push(new Connection(random_chosen_connection.n1,cell))
+            this.connections.push(new Connection(cell,random_chosen_connection.n2))
+            random_chosen_connection.disable();
+        }else{
+            console.log("failed sanity",cell.layer_number);
+        }
     }
 	remove_cell(target) {
 		const found = this.cells.find(x=>x==target);//sanity checks
