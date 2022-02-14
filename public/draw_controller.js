@@ -14,15 +14,48 @@ class Board {
 
         this.s_canvas=canvas2;
         this.s_ctx=canvas2.getContext("2d");
-        this.s_width=canvas2.width;
+        this.s_width=canvas2.width; 
         this.s_height=canvas2.height;
 	}
 
     get_node_color(node){
         return node.type=="A"?"#FF0000":node.type=="B"?"#0000FF":node.type=="C"?"#00FF00":"#afafaf"    
     }
+    s_blank(){
+        this.s_ctx.fillStyle="#000000";
+        this.s_ctx.fillRect(0,0,this.s_canvas.width,this.s_canvas.height);
+    }
     draw_brain(brain){
-            console.log(brain);    
+        //    console.log(brain);
+        this.s_blank();
+            
+        const inputLayer = brain.cells.filter(x=>x.is_input_layer==true)
+        const brain_drawer=(cell_arr)=>{
+            if(!cell_arr)return
+            console.log(cell_arr.length,"is length");
+            
+            cell_arr.forEach((start_cell,i,arr)=>{
+                this.s_ctx.fillStyle=start_cell.activation_value>0?"#ff0000":"#0000ff";
+                const x =i * arr.length ;
+                console.log(x)
+
+                const y= 100*start_cell.layer_index;
+                this.s_ctx.fillRect(x,y,20,20)
+                const connections_next = brain.connections.filter(x=>x.n1==start_cell.id).map(x=>brain.cells.find(y=>y.id==x.n2))
+                connections_next.forEach(conn=>{
+                    this.s_ctx.beginPath();
+                    this.s_ctx.moveTo(x,y);   
+                    const cx =conn.layer_number*arr.length/this.s_canvas.width ;
+                    const cy= 100*conn.layer_index;
+                    this.s_ctx.lineTo(cx,cy);
+                    this.s_ctx.stroke();
+                })
+                brain_drawer(connections_next);
+            })
+        }
+    brain_drawer(inputLayer)
+
+
     }
 	draw(living_nodes,triangles,brain) {
         console.time("draw")

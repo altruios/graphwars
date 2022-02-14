@@ -4,13 +4,16 @@
         <header style="display: block;">GRAPH WARS</header>
         <div id="content">
         <div id="left">
-
+            <div>
             <canvas id="canvas" height="420" width="420"></canvas>
-            <canvas id="canvas2" height="420" width="420"></canvas>
+        </div><div>
+        </div>
             <div id="hdisplay"></div>
     
         </div>
         <div id="right">
+            <canvas id="canvas2" height="420" width="420"></canvas>
+
             <div id="display"></div>
         </div>        
     </div>
@@ -20,7 +23,7 @@
     <script>
         var socket = io();
         const canvas = document.getElementById('canvas')
-        const canvas2 = document.getElementById('canvas')
+        const canvas2 = document.getElementById('canvas2')
         const display = document.getElementById('display');
         const hdisplay = document.getElementById('hdisplay');
        //this will be where the 'main display' goes, fetch pattern etc is determined here... whatever works best i guess... :/

@@ -6,6 +6,7 @@ import {do_to_co,do_to_real,do_to_pos} from '../utilities/do_to_co.js';
 class Neat_Brain{
 	constructor(host, template,template2) {
 		this.generation_number = 0;
+
 		this.cells = []
 		this.connections=[]
         this.host = host;
@@ -14,6 +15,7 @@ class Neat_Brain{
 		this.last_fitness = this.host.fitness;
         this.species=0;//iffy
         this.vision_number=4;
+        this.host_id=host.id;
 		if(!template){
             this.init_cells();
             this.init_connections();     
@@ -31,6 +33,8 @@ class Neat_Brain{
             last_move_vec:this.last_move_vec,
             last_fitness: this.last_fitness,
             species:this.species,
+            host_id:this.host_id,
+
         }
         return obj
     }
@@ -131,7 +135,7 @@ class Neat_Brain{
         for (let i = 0; i < 2; i++) {
 			const layer_breadth = i ==0?input_layer_length:answer_layer;
 			for (let j = 0; j < layer_breadth; j++) {
-				const cell = new Neat_Cell(i, this, j,i==0,layer_breadth==answer_layer); //x y info, on graph.
+				const cell = new Neat_Cell(i, this, j==0?0:12,i==0,layer_breadth==answer_layer); //x y info, on graph.
 				this.cells.push(cell);
 			}
 		}
