@@ -22,8 +22,22 @@ class Neat_Brain{
         }else{
             this.generation_number = 1+template.generation_number;
             this.child(template,template2);
+            this.deactivate_vestigial_cells();
+            this.deactivate_vestigial_weights();
         }
 	}
+    deactivate_vestigial_cells(){
+        this.cells.forEach(x=>this.get_active_connections().every(c=>c.n1.id!=x.id&&c.n2.id!=x.id)?x.deactivate():x.activate())
+    }
+    deactivate_vestigial_weights(){
+        this.connections.forEach(x=>this.get_active_cells().some(cell=>x.n1.id==cell.id||x.n2.id==cell.id)?null:x.deactivate())
+    }
+    get_active_cells(){
+        return this.cells.filter(x=>x.is_active);
+    }
+    get_active_connections(){
+        return this.connections.filter(x=>x.is_active);
+    }
     copy_data(){
         let obj={
             generation_number : this.generation_number,
@@ -39,13 +53,15 @@ class Neat_Brain{
         return obj
     }
     child(brain_1,brain_2){
-        //find dominate parent
+        //find dominate parentcells
         const brain_1_is_fitest=brain_1.fitness>=brain_2.fitness?true:false;
         const [parent_1,parent_2] = brain_1_is_fitest?[brain_1,brain_2]:[brain_2,brain_1];
     
         //structure definition
         this.cells = parent_1.cells.map(cell=>new Neat_Cell(cell.layer_number,this,cell.layer_index,cell.is_input_layer,cell.is_answer_layer, cell.id))
-        this.connections = parent_1.connections.map(conn=>new Connection(conn.n1,conn.n2));
+        const matching_conns = parent_1.connections.filter(x=>parent_2.connections.some(y=>y.in_id==x.in_id));
+        
+        this.connections = matching_conns.map(conn=>new Connection(conn.n1,conn.n2, conn.weight));
 
         //value bias definition
         this.cells.forEach(cell=>{
@@ -55,10 +71,13 @@ class Neat_Brain{
             cell.bias = parent2_gene?Math.random()>.5?parent2_gene:parent1_gene:parent1_gene;
         })
         this.connections.forEach(conn=>{
-            const parent1_phene = parent_1.connections.find(c=>c.is(conn))?.weight;
             const parent2_phene = parent_1.connections.find(c=>c.is(conn))?.weight;
-            const w = parent2_phene?Math.random()>0.5?parent2_phene:parent1_phene:parent1_phene;
-            conn.set_w(w)
+            if(parent2_phene){
+                if(Math.random()>.5){
+                    conn.set_w(parent2_phene)
+                }
+            }
+            
         })
 
 
@@ -74,9 +93,9 @@ class Neat_Brain{
         this.update_bias(value,gaurd);
     }
     add_or_delete_weight(value,guard){
-        if(Math.random()*value<guard){
-            console.log(value,guard,"changed structure - should be rare");
-            if(Math.random()>.5){
+        if(Math.random()*.6<guard){
+           // console.log(value,guard,"changed structure - should be rare");
+            if(Math.random()>.01){
                 this.add_weight()
             }else{
                 this.delete_weight()
@@ -84,39 +103,57 @@ class Neat_Brain{
         }
     }
     add_weight(){
-        const found = this.connections.find(x=>x.is_activated==false)
+        const found = this.connections.filter(x=>x.is_activated==false)[Math.floor(this.connections.length-1*Math.random())]
         found?.enable();
+        if(!found){
+            const t1= this.cells[Math.floor(this.cells.length*Math.random())]
+            const t2= this.cells[Math.floor(this.cells.length*Math.random())]
+            const things=[t1,t2].sort((a,b)=>a.layer_number-b.layer_number);
+            if(things[0].layer_number==12||things[1].layer_number==0){return}
+            const c = new Connection(t1,t2);
+            if(this.connections.some(x=>x.in_id==c.in_id)){
+                return
+            }
+            this.connections.push(c);
+
+        }
     }
     delete_weight(){
-
+        console.count("deleteingweight")
         const found = this.connections.filter(x=>x.is_activated==true);
-        const target = found[Math.floor(Math.random()*found.length-1)]
+        const potential = found.filter((x,i,arr)=>(
+            x.n1.id==arr.find(y=>y.in_id!=x.in_id&&(y.n1.id==x.n1.id||y.n1.id==x.n2.id)))
+            &&
+            x.n2.id==arr.find(y=>(y.in_id!=x.in_id&&(y.n2.id==x.n1.id||y.n2.id==x.n2.id)))
+            )
+        const target = potential[Math.floor(Math.random()*potential.length-1)]
         target?.disable();
     }
+
     sanity_check(added_node){
         if( added_node.layer_number!=0&&
             added_node.layer_number!=12) //more later
         return true
     }
     randomize_weight(value,guard){
-        if(Math.random()>guard){
-            console.log("randomizeing weight",guard);
+        if(Math.random()<guard){
+           // console.log("randomizeing weight",guard);
 
             this.connections[Math.floor(do_to_co(value,[-1,1],[0,this.connections.length-1]))].weight = Math.random()-1*2
         }
     }
     mutate_weight(value,guard){
         if(Math.random()>guard){
-            console.log("mutating weight",guard);
+            //console.log("mutating weight",guard);
             const i = Math.floor(do_to_co(value,[-1,1],[0,this.connections.length-1]))
             const target_con = this.connections[i]
-            target_con.weight=Math.max(Math.min(1,target_con.weight+value),-1)
+            target_con.mutate(value,guard);
         } 
     }
     add_or_delete_cell(value,guard)
         {
-        if(Math.random()>guard){
-            console.log(value,guard,"changed cell structure - should be rare");
+        if(Math.random()>guard*7){
+       //     console.log(value,guard,"changed cell structure - should be rare");
 
             if(value>0){
                 this.add_cell()
@@ -152,7 +189,8 @@ class Neat_Brain{
         const input_layer=this.get_input_cells()
         const output_layer=this.get_output_cells();
         input_layer.forEach(c=>output_layer.forEach((oc)=>{
-            this.connections.push(new Connection(c,oc))
+            const weight = Math.random()*2-1;
+            this.connections.push(new Connection(c,oc,weight))
         }))
     }
 	get_output_activation_value() {
@@ -180,7 +218,7 @@ class Neat_Brain{
 		this.host = host;
 	}
     add_cell(){
-        console.log("adding node-braincell");
+      //  console.log("adding node-braincell");
         const random_chosen_connection = this.connections[Math.floor(Math.random()*this.connections.length)];
         const n1=random_chosen_connection.n1;
         const n2=random_chosen_connection.n2;
@@ -273,7 +311,7 @@ class Neat_Brain{
 		return this.get_output_activation_value();
 	}
 	prop_forward() {
-		const to_propagate = this.cells.filter(x => !x.is_input_layer);
+		const to_propagate = this.get_active_cells().filter(x => !x.is_input_layer);
 		for (let i = 0; i < to_propagate.length; i++) {
 			to_propagate[i].setActivation_Value();
 		}
@@ -298,7 +336,7 @@ class Neat_Cell{
 		this.mutation_counter = 0;
 		this.layer_number=layer_number;
         this.layer_index = j;
-	
+        this.is_active=true;
     }
     copy_data(){
         const obj= {
@@ -315,9 +353,7 @@ class Neat_Cell{
         }
         return obj;
     }	
-	get_weights() {
-		return this.weights;
-	}
+
 	setActivation_Value() {
 		this.activation_value = this.get_next_activation_value();
 	}
@@ -338,6 +374,12 @@ class Neat_Cell{
 		this.connections_backwards = [];
 		this.connections_forward = [];
 	}
+    activate(){
+        this.is_active=true;
+    }
+    deactivate(){
+        this.is_active=false;
+    }
     mutate_bias(p,g){
         if(g>Math.random()){
             this.bias=this._mutate(this.bias,p)
@@ -351,15 +393,21 @@ class Neat_Cell{
 
 }
 class Connection{
-    constructor(n1,n2){
+    constructor(n1,n2,w){
         const [a,b]=n1.layer_number>n2.layer_number?[n1,n2]:[n2,n1];
 
         this.n1=n1;
         this.n2=n2;
-        this.weight=Math.random()*2-1;
+        this.weight=w||Math.random()*2-1;
         this.is_active=true;
         this.mutation_counter=0;
         this.in_id=this.get_in_id();
+    
+    }
+    mutate(p,g){
+        if(Math.random()<g){
+            this.weight=this._mutate(this.weight,p);
+        }
     }
     copy_data(){
         return{
@@ -393,7 +441,7 @@ class Connection{
     _mutate(val,p){
 		this.mutation_counter++;
 		const sign =Math.random()>0.5?1:-1; 
-		return Math.max(Math.min(this.mutation*p+sign*val,1),-1)
+		return Math.max(Math.min(p+sign*val,1),-1)
     }
 }
 const Trool = (t)=>t=="A"?-1:t=="B"?0:1;

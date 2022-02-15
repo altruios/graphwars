@@ -117,8 +117,10 @@ class Graph_Node {
 		this.color = this.connections.length == 0 ? "#aaaaaa" : this.type == "A" ? `#ff0000` : this.type == "B" ? "#00ff00" : "#0000ff"
 	}
 	boundries(width, height) {
-		this.x = Math.min(Math.max(this.x, 0), width);
-		this.y = Math.min(Math.max(this.y, 0), height);
+		this.x <=0		||
+		this.x>=width 	||
+		this.y <= 0		||
+		this.y >= height ?this.set_is_activated(false):null;
 	}
 	connect(other_node) {
 		if (!this.connections.includes(other_node)) {

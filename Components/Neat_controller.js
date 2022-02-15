@@ -8,6 +8,7 @@ class Neat_Controller{
 		this.node_count = options.node_count;
 		this.height = options.height;
 		this.width = options.width;
+		this.target_species = options.target_species
 		this.last_game_data=null;
 		this.collections = [];
 		this.winning_nodes=[];//save of winners in last games
@@ -21,7 +22,7 @@ class Neat_Controller{
 		this.epoc_level=options.epoc_level;
         this.notice_range = options.notice_range;
 		this.visual_range = options.visual_range;
-        this.species_threshold=options.species_threshold;
+        this.species_threshold=4;
 		this.best_living_count=0;
 		this.render_count = 0;
 		this.game_count = 0;
@@ -55,8 +56,8 @@ class Neat_Controller{
 		for (let i = 0; i < this.node_count; i++) {
 			this.add_node()
 		}
-		this.fitest_node=this.collections[0];
-		this.champion=this.collections[0];
+		this.fitest_node=this.collections[0].Brain;
+		this.champion=this.collections[0].Brain;
 	}
 	set_catch(num) {this.catch_range = num;}
 	set_max_connection_length(num) {this.max_range = num;}
@@ -64,7 +65,6 @@ class Neat_Controller{
 		this.update_quad_tree(living_nodes);
 		this.update_collections(living_nodes);
 
-		this.emit();
 
 	}
 	update_quad_tree(living_nodes){this.quadTree.reset_graph(living_nodes);}
@@ -155,8 +155,10 @@ class Neat_Controller{
 	}
 	render() {
         const living_nodes = this.get_living_nodes();
-		this.reward(living_nodes);
 		this.step(living_nodes);
+		this.reward(living_nodes);
+		this.emit();
+
 		this.render_count++;
 	} 
 	engine(that){
@@ -210,26 +212,35 @@ ${pad("",100,"#")}`);
 		this.last_average_fitness=average_fitness;
 		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
 		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
-		this.champion = fitness_win ? winning_node:this.champion;
+		this.champion = fitness_win ? winning_node.Brain:this.champion;
         this.scatter_nodes();
 		this.neat_algorithm(winning_node); 
 		this.reactivate_nodes();
 	}
     neat_algorithm(wn){
+		console.log("!!!NEAT ALOGORITHM\n\n\n");
         const pool = this.get_mating_pool();
         this.set_next_brains(pool,wn,this.champion)
+
+		console.log("\n\n\nNEAT ALOGORITHM!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n");
     };
     seperate_into_species(){
         const species_pool=[];
+		
+
         let ln = this.get_living_nodes();
         while(ln.length>0){
-			console.log("ln lneght",ln.length);
-            const random_species_sample=ln[Math.floor(Math.random()*ln.length-1)]
+			console.log("ln length",ln.length);
+			const ri = Math.floor(Math.random()*ln.length);
+            
+			const random_species_sample=ln[ri]
 			species_pool.push([random_species_sample]);//new species by some random living node
-			ln=ln.filter(x=>x!=random_species_sample);
+			random_species_sample.species=random_species_sample.species||species_pool.length;
+			ln=ln.filter(x=>x.id!=random_species_sample.id);
 			const removed=[];
+			console.log("ln len",ln.length)
             for(let i=0;i<ln.length;i++){
-                if(this.determin_species(random_species_sample,ln[i])){ //template 
+                if(this.determin_species(random_species_sample.Brain,ln[i].Brain)){ //template 
 					const li = species_pool.length-1; //last index
                     species_pool[li].push(ln[i])
 					ln[i].species=li;
@@ -238,37 +249,43 @@ ${pad("",100,"#")}`);
             }
             ln=ln.filter(x=>!removed.some(y=>y==x.id));//remove those that were pushed in the for loop.
         }
+		if(species_pool.length<5){
+			this.species_threshold+=0.05
+		}else if(species_pool.length>5){
+			this.species_threshold-=0.05
+
+		}
+		console.log("count of species",species_pool.length);
         return species_pool;
     }
     determin_species(template,sample){
         if(! template)return true //first 1 
         //cd = e+d+w|
-		
-        const top_sample_in_id = sample.Brain.connections.sort((a,b)=>b.in_id-a.in_id)[0].in_id;
-        const e = template.connections.reduce((acc,con)=>acc+(con.in_id>top_sample_in_id?1:0),0);
-        const d = template.connections.reduce((acc,con)=>acc+(sample.  connections.find(c=>c.in_id==con.in_id)?0:1),0)+
-                    sample.connections.reduce((acc,con)=>acc+(template.connections.find(c=>c.in_id==con.in_id)?0:1),0)
-        const w = template.connections.reduce((acc,con)=>acc+Math.abs(con.weight,(sample.  connections.find(c=>c.in_id==con.in_id)?.weight||0)),0)
+        const e = template.connections.reduce((acc,con)=>acc+=(sample.connections.find(c=>c.in_id==con.in_id)?0:1),0);
+        const d = template.connections.reduce((acc,con)=>acc+=(sample.  connections.find(c=>c.in_id==con.in_id)?0:1),0)+
+                    sample.connections.reduce((acc,con)=>acc+=(template.connections.find(c=>c.in_id==con.in_id)?0:1),0)
+        const w = template.connections.reduce((acc,con)=>acc+=(con.weight-(sample.  connections.find(c=>c.in_id==con.in_id)?.weight||0)),0)
         const cd = e + d + w;
-		console.log(this.species_threshold-cd, e,d,w);
-
-        return this.species_threshold-cd>0;
+        return Math.abs(cd)>this.species_threshold;
 
     }
 	get_mating_pool(){
         const mating_pond = this.seperate_into_species();
         const mating_nodes = mating_pond.reduce((acc,species)=>{
-            const surviving_half = species.sort((a,b)=>a.fitness-b.fitness).slice(Math.floor((species.length-1)/2))
+            species.sort((a,b)=>a.fitness-b.fitness)
+			const surviving_half = species.slice(Math.floor((species.length-1)/2))
             surviving_half.forEach(sh=>acc.push(sh))
+			console.log("surving half", surviving_half.length,species.length)
             return acc;
         },[])
 
 		const mating_pool=[];
-		console.log(mating_nodes.length,"matting nodes length:");
+		console.log(mating_pond.length,mating_nodes.length,"mating nodes length:");
 
 		mating_nodes.forEach(node=>{
-			console.log(node,"is node");
-			let mate_fitness = do_to_co(node.fitness,[0.1,this.champion.fitness],[0.001,100])
+			if(!node){console.log('what the what?',mating_nodes.length);return}
+			let mate_fitness = do_to_co(node.fitness,[0.1,this.best_fitness*2],[0.001,100])
+			console.log(mate_fitness,"is ",node.id,"fitness score",node.species);
 			for(let i =0;i<mate_fitness;i++){
 				mating_pool.push(node);
 			}
@@ -285,7 +302,7 @@ ${pad("",100,"#")}`);
         this.collections.forEach((node,i,arr)=>{
             if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
                 if(i==0 || (i==1 && winning_node.id==arr[0].id)){
-                    node.become_child_of(champion.Brain,champion.Brain);
+                    node.become_child_of(champion,champion);
                     return;
                 }
                 //p value weights in perceptron cells change by
@@ -293,12 +310,11 @@ ${pad("",100,"#")}`);
                 const p = node.fitness/this.best_fitness;
                 const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
                 const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
-                const parent_1 = mating_pool[p1];
+                const parent_1 = mating_pool[p1].Brain;
 				let filtered_pool = mating_pool.filter(x=>x.id!=parent_1.id);
                 let p2 = Math.floor(Math.random()*(filtered_pool.length-1))
-                let parent_2 = filtered_pool[p2]||champion;
-				console.log("changed p2",parent_1.id,parent_2.id);
-                node.become_child_of(parent_1.Brain,parent_2.Brain);
+                let parent_2 = filtered_pool[p2]?.Brain||champion;
+                node.become_child_of(parent_1,parent_2);
                 node.mutate_next(p,g)		
             }
         })
@@ -310,12 +326,11 @@ ${pad("",100,"#")}`);
 	fuck_over_wall_huggers(ln){
 		let x=0;
 		ln.forEach(c=>{
-			if(c.x<=20||c.y<=20||c.x>=this.width-20||c.y>=this.height-20){
+			if(c.x<=0||c.y<=0||c.x>=this.width||c.y>=this.height){
 				c.set_is_activated(false);
 				x++
 			}
 		})
-		console.log(x,"were too close to the wall out of ",ln.length, "only", ln.length-x,"survivers")
 		return ln
 	}
 	evaluate() {
@@ -328,6 +343,7 @@ ${pad("",100,"#")}`);
 
 		this.best_living_count=winners.length>this.best_living_count?winners.length:this.best_living_count;
 		const fitest = this.find_fitest_node(winners);
+		if (!fitest) {}
 		fitest.reward();
 		console.log("fitest node is:");
 
@@ -335,21 +351,22 @@ ${pad("",100,"#")}`);
 		console.log(fitest.fitness.toFixed(1), "vs champion of:", this.best_fitness.toFixed(1))
 		console.log("this was the fitest node: ",fitest.win_count)
 		console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n")
-		if (!fitest) {
-		} else {
-			if(this.game_count==this.epoc_level){
-				console.log(fitest.fitness,"last call");
-				return
-			}
-			this.new_game(fitest);
+
+		
+		if(this.game_count==this.epoc_level){
+			console.log(fitest.fitness,"last call");
+			return
 		}
+		this.new_game(fitest);
+		
 	}
 
 	full_json_data(){
+		const ln = this.get_living_nodes();
 		const game_stats = this.get_game_stats();		
 		const nodes = this.collections.map(x=>x.shallow_copy());
-		const brain = this.collections[0].Brain.copy_data();
-		const triangles = this.get_all_triangles(this.get_living_nodes()).map(x=>x.map(y=>y.id));
+		const brain = (ln).sort((a,b)=>a.Brain.get_active_cells().length - b.Brain.get_active_cells().length)[ln.length-1].Brain.copy_data();
+		const triangles = this.get_all_triangles(ln).map(x=>x.map(y=>y.id));
 
 		return {game_stats,nodes,triangles,brain}	
 	}
