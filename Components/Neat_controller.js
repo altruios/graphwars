@@ -150,6 +150,7 @@ class Neat_Controller{
     get_living_nodes(){return this.collections.filter(x=>x.is_activated)}
 	reward(living_nodes){
 		living_nodes.forEach(node=>node.update_fitness(0.01));
+		living_nodes=this.fuck_over_wall_huggers(living_nodes);
 		const triangles = this.get_all_triangles(living_nodes);
 		this.reward_triangles(triangles)
 	}
@@ -178,7 +179,7 @@ class Neat_Controller{
 				process.stdout.clearScreenDown()
 				process.stdout.write(`
 ${pad("",100,"#")}
-${pad("",100,"#")}
+${pad("",100,"#")} 
 ## render count:${pad("",8,"  ")}render time:${pad("",8,"  ")}count of nodes:${pad("",8,"  ")}game_count:${pad("",20," ")}##
 ##${pad(that.render_count,13," ")}${pad("",8," ")}${pad(time_end,10," ")}ms${pad("",9," ")}${pad(that.get_living_nodes().length,14," ")}${pad("",8,"  ")} ${pad(that.game_count.toString(),10," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##

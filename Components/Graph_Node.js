@@ -111,12 +111,13 @@ class Graph_Node {
 	}
 	update_r() {
 		const update_r = this.connections.length
-		this.r = Math.abs(Math.sin(update_r) * (update_r));
+		this.r = Math.abs((Math.sin(update_r)+1) + (update_r*(2+Math.min(1,this.fitness/this.ref.best_fitness))));
 	}
 	update_color() {
 		this.color = this.connections.length == 0 ? "#aaaaaa" : this.type == "A" ? `#ff0000` : this.type == "B" ? "#00ff00" : "#0000ff"
 	}
 	boundries(width, height) {
+		return null;
 		this.x <=0		||
 		this.x>=width 	||
 		this.y <= 0		||

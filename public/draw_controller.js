@@ -29,18 +29,9 @@ class Board {
         //    console.log(brain);
         this.s_blank();
         console.log(brain.cells.length,"is size");
-        brain.cells.forEach((cell,i,arr)=>{
-            const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
 
-            this.s_ctx.fillStyle=cell.is_hidden_layer==true?cell.activation_value>0?"#ffff00":"#00ffff":cell.activation_value>0?"#ff0000":"#0000ff";
-
-                const x =cell.layer_index * (this.s_canvas.width/depth)+(this.s_canvas.width/depth)/3;
-                const y= cell.layer_number*this.s_canvas.height/16+50;
-                
-                this.s_ctx.fillRect(x,y,10,10)
-                cell.is_answer_layer==true?console.log(cell,y):null;
-        })
         brain.connections.forEach((conn,i)=>{
+            if(conn.is_activated==false) return
             const cell = brain.cells.find(x=>x.id==conn.n1);
             const cell2 = brain.cells.find(x=>x.id==conn.n2);
             const arr = brain.cells;
@@ -49,45 +40,38 @@ class Board {
 
             const x1=cell.layer_index * (this.s_canvas.width/depth)  +5+(this.s_canvas.width/depth)/3
             const x2=cell2.layer_index * (this.s_canvas.width/depth2)+5 +(this.s_canvas.width/depth2)/3
-            const y1= cell.layer_number*this.s_canvas.height/16+50+5
-            const y2= cell2.layer_number*this.s_canvas.height/16+50+5
+            const y1= cell.layer_number*this.s_canvas.height/30+50+20
+            const y2= cell2.layer_number*this.s_canvas.height/30+50+20
+            this.s_ctx.lineWidth = Math.abs(conn.weight*cell.activation_value+cell.bias)*1.82;
+
             this.s_ctx.strokeStyle=conn.weight>0?"#0000ff":"#ff0000";
             this.s_ctx.beginPath();
             this.s_ctx.moveTo(x1,y1);
             this.s_ctx.lineTo(x2,y2);
             this.s_ctx.stroke();
         })
+        brain.cells.forEach((cell,i,arr)=>{
+            const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
+
+            this.s_ctx.fillStyle=cell.is_hidden_layer==true?cell.activation_value>0?"#ffff00":"#00ffff":cell.activation_value>0?"#ff0000":"#0000ff";
+
+                const x =(cell.layer_index * (this.s_canvas.width/depth)+(this.s_canvas.width/depth)/3);
+                const y= cell.layer_number*this.s_canvas.height/30+50;
+                
+                this.s_ctx.fillRect(x,y,40,40)
+        })
+
+        this.s_ctx.fillStyle="#ffffff";
+        this.s_ctx.font = 'bold 48px serif';
+        this.s_ctx.fillText(brain.host_id,this.s_canvas.width/2,this.s_canvas.height-100)
     }
 	draw(living_nodes,triangles,brain) {
         console.time("draw")
         this.blank();
-        this.draw_brain(brain);
-		triangles.forEach(trig => {
-            let trig_nodes = trig.map(x=>living_nodes.find(y=>y.id==x));
-            
-			const grd = this.ctx.createLinearGradient(
-                Number(trig_nodes[0].x), 
-                Number(trig_nodes[0].y), 
-                (Number(trig_nodes[1].x) + Number(trig_nodes[2].x)) / 2, 
-                (Number(trig_nodes[1].y) + Number(trig_nodes[2].y)) / 2)
-			grd.addColorStop(0, this.get_node_color(trig_nodes[0]));
-			grd.addColorStop(.5, this.get_node_color(trig_nodes[1]));
-			grd.addColorStop(1, this.get_node_color(trig_nodes[2]));
-			this.ctx.fillStyle = grd;
-			this.ctx.beginPath();
-			this.ctx.moveTo(trig_nodes[0].x, trig_nodes[0].y);
-			this.ctx.lineTo(trig_nodes[1].x, trig_nodes[1].y);
-			this.ctx.lineTo(trig_nodes[2].x, trig_nodes[2].y);
-			this.ctx.fill();
-		})
 		living_nodes.forEach(node => {
             node.connections.forEach(other_node => {
-                const grd = this.ctx.createLinearGradient(node.x,node.y,other_node.x,other_node.y);
-                grd.addColorStop(0,this.get_node_color(node));
-                grd.addColorStop(1,this.get_node_color(other_node));
-
-                this.ctx.strokeStyle = grd;
-                this.ctx.lineWidth = other_node.r > node.r ? node.r / 2 : other_node.r / 2;
+                this.ctx.strokeStyle = this.get_node_color(node);
+                this.ctx.lineWidth = 2;
                 this.ctx.beginPath();
                 this.ctx.moveTo(node.x, node.y);
                 this.ctx.lineTo(other_node.x, other_node.y);
@@ -136,20 +120,6 @@ class Board {
     get_fitest_node(nodes){
         return nodes.sort((a,b) => b.fitness-a.fitness)[0]
 
-    }
-    draw_quad_tree(tree,dept){
-        if(!tree)   return
-        if(!dept)   dept=0;
-        if(dept>255)dept=255
-
-        this.ctx.strokeStyle=`rgb(${dept},${255-dept},${dept})`;
-        this.ctx.lineWidth=5;
-        this.ctx.strokeRect(tree.x,tree.y,tree.w,tree.h);
-        this.ctx.stroke();
-        this.draw_quad_tree(tree.tl,dept+40)
-        this.draw_quad_tree(tree.tr,dept+40)
-        this.draw_quad_tree(tree.bl,dept+40)
-        this.draw_quad_tree(tree.br,dept+40)
     }
     update_meta_data_display(game_stats){
 
@@ -267,9 +237,8 @@ class Board {
 
         this.data=data;
         this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.brain);
-        this.draw_quad_tree(data.quad_tree)
+        this.draw_brain(data.brain);
         this.render_count=data.render_count;
-        console.time("next_image", data.triangles)
 
         this.update_display(data); //time for a framework react... redux?
         console.timeEnd("next_image")
@@ -296,9 +265,6 @@ class Board {
 	
         }
 		}
-	test(node) {
-		console.log(node.Brain.predict(this.collections));
-	}
 
 }
 //god why can't i just import these
