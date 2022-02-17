@@ -38,10 +38,10 @@ class Board {
             const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
             const depth2 = arr.filter(x=>x.layer_number==cell2.layer_number).length;
 
-            const x1=cell.layer_index * (this.s_canvas.width/depth)  +5+(this.s_canvas.width/depth)/3
-            const x2=cell2.layer_index * (this.s_canvas.width/depth2)+5 +(this.s_canvas.width/depth2)/3
-            const y1= cell.layer_number*this.s_canvas.height/30+50+20
-            const y2= cell2.layer_number*this.s_canvas.height/30+50+20
+            const x1=cell.layer_index * (this.s_canvas.width/depth)  +5+(this.s_canvas.width/depth)/3+20
+            const x2=cell2.layer_index * (this.s_canvas.width/depth2)+5 +(this.s_canvas.width/depth2)/3+20
+            const y1= cell.layer_number*this.s_canvas.height/30+20
+            const y2= cell2.layer_number*this.s_canvas.height/30+20
             this.s_ctx.lineWidth = Math.abs(conn.weight*cell.activation_value+cell.bias)*1.82;
 
             this.s_ctx.strokeStyle=conn.weight>0?"#0000ff":"#ff0000";
@@ -56,7 +56,7 @@ class Board {
             this.s_ctx.fillStyle=cell.is_hidden_layer==true?cell.activation_value>0?"#ffff00":"#00ffff":cell.activation_value>0?"#ff0000":"#0000ff";
 
                 const x =(cell.layer_index * (this.s_canvas.width/depth)+(this.s_canvas.width/depth)/3);
-                const y= cell.layer_number*this.s_canvas.height/30+50;
+                const y= cell.layer_number*this.s_canvas.height/30;
                 
                 this.s_ctx.fillRect(x,y,40,40)
         })
@@ -65,9 +65,58 @@ class Board {
         this.s_ctx.font = 'bold 48px serif';
         this.s_ctx.fillText(brain.host_id,this.s_canvas.width/2,this.s_canvas.height-100)
     }
+    draw_trianges(arr,nodes){
+        
+        const triangles = nodes.reduce((acc,node)=>{
+            const triangle_paths = node.connections.reduce((ac,n2)=>{
+                const avalible_paths = n2.connections.reduce((a,n3)=>{
+                    if(n3.connections.some(y=>y.id==node.id)) a.push([node,n2,n3])
+                    return a;
+                },[]);
+                if(avalible_paths.length>0){
+                    console.log(avalible_paths);
+                    ac.push(...avalible_paths)
+                }
+                return ac;
+
+            },[])
+            if(triangle_paths.length>0){
+                acc.push(...triangle_paths);
+            }
+            return acc
+        },[])
+
+        console.log("triangles are",triangles)
+
+        triangles.forEach(trig=>{
+            if(trig.some(x=>x==undefined)) return
+            
+            this.ctx.beginPath();            
+            const grd = this.ctx.createLinearGradient(
+                Number(trig[0].x), 
+                Number(trig[0].y), 
+                (Number(trig[1].x) + Number(trig[2].x)) / 2, 
+                (Number(trig[1].y) + Number(trig[2].y)) / 2)
+            
+            
+			grd.addColorStop(0, this.get_node_color(trig[0]));
+			grd.addColorStop(.5, this.get_node_color(trig[1]));
+			grd.addColorStop(1, this.get_node_color(trig[2]));
+			this.ctx.fillStyle = grd;
+			this.ctx.beginPath();            
+            this.ctx.moveTo(Number(trig[0].x),Number(trig[0].y))
+            trig.forEach(node=>{
+                this.ctx.lineTo(Number(node.x),Number(node.y));
+            })
+			this.ctx.fill(); 
+            this.ctx.stroke();
+        })
+    }
 	draw(living_nodes,triangles,brain) {
         console.time("draw")
         this.blank();
+        this.draw_trianges(triangles,living_nodes);
+
 		living_nodes.forEach(node => {
             node.connections.forEach(other_node => {
                 this.ctx.strokeStyle = this.get_node_color(node);
@@ -102,20 +151,25 @@ class Board {
             }
 
         });
-        this.highlight_fittest_node(living_nodes);
+        this.highlight_target_node(living_nodes,brain.host_id);
      //   this.draw_target_node(target_node)
 	
         console.timeEnd("draw")
 
     }
 
-    highlight_fittest_node(nodes){
-        const color = this.bg_color=="#000000"?`rgba(255,255,255,0.3)`:`rgba(0,0,0,0.3)`
-        this.ctx.fillStyle=color;
-        const fittest_node=this.get_fitest_node(nodes);
+    highlight_target_node(ln,nodeid){
+        this.ctx.fillStyle=`rgba(255,0,0,.2)`;
+        const fittest_node=ln.find(x=>x.id==nodeid);
         this.ctx.beginPath();
-        this.ctx.arc(fittest_node.x,fittest_node.y,fittest_node.r+20,0,Math.PI*2);
+        this.ctx.arc(fittest_node.x,fittest_node.y,this.data.game_stats.visual_range,0,Math.PI*2);
         this.ctx.fill()
+        this.ctx.fillStyle=`rgba(0,255,255,.2)`;
+        this.ctx.beginPath();
+
+        this.ctx.arc(fittest_node.x,fittest_node.y,this.data.game_stats.notice_range,0,Math.PI*2);
+        this.ctx.fill()
+
     }
     get_fitest_node(nodes){
         return nodes.sort((a,b) => b.fitness-a.fitness)[0]
@@ -232,6 +286,8 @@ class Board {
         this.width = data.game_stats.width;
     }
     next_image(data){
+        console.time("next_image")
+
         this.set_height_and_width(data)
 
 
@@ -272,6 +328,8 @@ const do_to_co=(val,o_r,n_r)=>(val - o_r[0]) * (n_r[1] - n_r[0]) / (o_r[1] - o_r
 const do_to_pos=(val,o_r)=>do_to_co(val,o_r,[0,1]);
 const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);
 const compare_fitness = (a,b)=> b.fitness - a.fitness
+const typer =(t)=>t=="A"?"#ff0000":t=="B"?"#00ff00":"#0000ff";
+
 const compare_is_active = (a,b)=>(a.is_activated===b.is_activated)?0:a.is_activated?-1:1
 function removeAllChildNodes(parent) {
     while (parent.firstChild) {

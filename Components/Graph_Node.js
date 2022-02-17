@@ -19,8 +19,8 @@ class Graph_Node {
 		this.fitness = 1;
         this.last_performance = 0;
         this.win_count=0;
-		this.notice_range=100;
-		this.vision_range=200;
+		this.notice_range=ref.notice_range;
+		this.visual_range=ref.visual_range;
 	}
 	shallow_copy(){
 		return {id:this.id,
@@ -34,7 +34,7 @@ class Graph_Node {
 		last_p:(this.last_performance*100).toFixed(1),
 		last_x:(this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]).toFixed(2)||0,
 		last_y:(this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]).toFixed(2)||0,
-		connections:this.connections.map(x=>({x:x.x,y:x.y})),
+		connections:this.connections.map(x=>({type:x.type,x:x.x,y:x.y,id:x.id,connections:x.connections.map(y=>({type:y.type,x:y.x,y:y.y,id:y.id,connections:y.connections.map(z=>({type:z.type,x:z.x,y:z.y,id:z.id}))}))})),
 
 
 	}
@@ -47,7 +47,7 @@ class Graph_Node {
 			y:this.y,
 			r:this.r,
 			type:this.type,
-			connections:this.connections.map(x=>({x:x.x,y:x.y,connections:x.connections.map(y=>({x:y.x,y:y.y,connections:y.connections.map(z=>({x:z.x,y:z.y}))}))})),
+			connections:this.connections.map(x=>({x:x.x,y:x.y,id:x.id,connections:x.connections.map(y=>({x:y.x,y:y.y,id:y.id,connections:y.connections.map(z=>({x:z.x,y:z.y,id:z.id}))}))})),
 			is_activated:this.is_activated,  
 			fitness:this.fitness,
 			last_p:this.last_performance*100,
@@ -151,16 +151,16 @@ class Graph_Node {
 	update() {
 		const width = this.ref.width;
 		const height = this.ref.height;
-		if(this.notice_range>this.vision_range){
-			this.notice_range=this.vision_range;
+		if(this.notice_range>this.visual_range){
+			this.notice_range=this.visual_range;
 		}
-        const close_nodes = this.ref.quadTree.find(this, this.vision_range);    
+        const close_nodes = this.ref.quadTree.find(this, this.visual_range*2);    
+        this.break_connections(this.visual_range);
+		this.move(close_nodes);
 		this.make_connections(close_nodes, this.notice_range);
-        this.move(close_nodes);
-        this.break_connections(this.vision_range);
         this.update_r();
         this.update_color();
-        this.boundries(width, height);
+//        this.boundries(width, height);
 
 
     }

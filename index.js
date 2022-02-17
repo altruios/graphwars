@@ -24,11 +24,11 @@ const game_options={
   node_count: 250,
 	height: 1080*2,
 	width:1920*2,
-  render_speed:24,
+  render_speed:1,
   max_render_count: 2000,
 	epoc_level:910000,
-  notice_range:100,
-	visual_range: 200,
+  notice_range:150,
+	visual_range: 300,
   target_species:5,
 }
 const game = new Controller(game_options);

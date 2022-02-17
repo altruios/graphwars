@@ -169,10 +169,11 @@ class Neat_Brain{
     add_or_delete_cell(value,guard)
         {
             //debug
-        if(Math.random()>0.887){
+        if(Math.random()>0.737){
        //     console.log(value,guard,"changed cell structure - should be rare");
 
-            if(value>0){
+            if(Math.random()>guard){
+                console.log("addind node - guard was",guard);
                 const found = this.cells.filter(x=>!x.is_active)
                 if(found.length>0){
                     const target = found[Math.floor(found.length*Math.random())];
@@ -198,7 +199,12 @@ class Neat_Brain{
             }else{
                 const targets = this.get_hidden_cells();
                 const target = targets[Math.floor(Math.random()*targets.length)];
-                this.remove_cell(target) 
+                if(target){
+                    this.remove_cell(target) 
+                }
+                else{
+                    this.add_or_delete_cell()
+                }
             }
         }
     }
@@ -235,8 +241,13 @@ class Neat_Brain{
 		return this.get_output_cells().map(x => x.activation_value);
 	}
 	get_hidden_cells() {
-		return this.cells.filter(x => !x.is_input_layer && !x.is_answer_layer)
+		return this.cells.filter(x => x.is_hidden_layer&&x.is_active);
+
 	}
+    get_all_hidden_cells(){
+        return this.cells.filter(x => x.is_hidden_layer);
+
+    }
 	get_output_cells() {
 		return this.cells.filter(x => x.is_answer_layer);
 	}
@@ -267,8 +278,13 @@ class Neat_Brain{
             }
         }
         const random_chosen_connection = chosen_connections[Math.floor(Math.random()*chosen_connections.length)];
-        const n1=random_chosen_connection.n1;
-        const n2=random_chosen_connection.n2;
+        const n1=random_chosen_connection?.n1;
+        const n2=random_chosen_connection?.n2;
+        if(!n1||!n2){
+            console.log("failed sanity - bad connection");
+            console.log(random_chosen_connection);
+            return;
+        }
         const [b,s]=n1.layer_number>n2.layer_number?[n1.layer_number,n2.layer_number]:[n2.layer_number,n1.layer_number]
         const node_layer = Math.floor(b-((b-s)/2))
         const node_layer_index = this.get_hidden_cells().filter(x=>x.layer_number==node_layer).length;   
@@ -285,10 +301,13 @@ class Neat_Brain{
 	remove_cell(target) {
 		const found = this.cells.find(x=>x==target);//sanity checks
         if(!found) return
-        this.cells = this.cells.filter(x => x !== found);
+        found.deactivate()
         this.remove_connections(found);
 
         //more clean up here
+    }
+    remove_connections(found_cell){
+        this.connections.forEach(conn=>conn.has(found_cell)?conn.disable():null)
     }
 	run(other_nodes) {
         const data = this.get_data(other_nodes);
@@ -392,6 +411,7 @@ class Neat_Cell{
 		id:this.id,
 		is_answer_layer:this.is_answer_layer ,
         is_input_layer:this.is_input_layer,
+        is_active:this.is_active,
         is_hidden_layer:this.is_hidden_layer,
 		mutation_counter:this.mutation_counter,
 		layer_number:this.layer_number,
@@ -486,6 +506,9 @@ class Connection{
     other_node(node){
         if(this.is_active==false)return -1
         return this.n1==node?this.n2:this.n1;
+    }
+    has(n){
+        return this.n1.id==n.id||this.n2.id==n.id;
     }
     _mutate(val,p){
 		this.mutation_counter++;
