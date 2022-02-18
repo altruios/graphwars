@@ -33,7 +33,7 @@ const game_options={
 }
 const game = new Controller(game_options);
 
-const port =3000;
+const port =3001;
 
    
 app.use(express.static('public'))

@@ -25,16 +25,13 @@ class Board {
         this.s_ctx.fillStyle="#000000";
         this.s_ctx.fillRect(0,0,this.s_canvas.width,this.s_canvas.height);
     }
-    draw_brain(brain){
-        //    console.log(brain);
-        this.s_blank();
-        console.log(brain.cells.length,"is size");
-
-        brain.connections.forEach((conn,i)=>{
+    draw_brain_connections(brain){
+        const active_conns = brain.connections.filter(x=>x.is_active)
+        const arr = brain.cells.filter(x=>x.is_active);
+        active_conns.forEach((conn,i)=>{
             if(conn.is_activated==false) return
             const cell = brain.cells.find(x=>x.id==conn.n1);
             const cell2 = brain.cells.find(x=>x.id==conn.n2);
-            const arr = brain.cells;
             const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
             const depth2 = arr.filter(x=>x.layer_number==cell2.layer_number).length;
 
@@ -50,7 +47,10 @@ class Board {
             this.s_ctx.lineTo(x2,y2);
             this.s_ctx.stroke();
         })
-        brain.cells.forEach((cell,i,arr)=>{
+    }
+    draw_brain_cells(brain){
+        const active_cells = brain.cells.filter(x=>x.is_active)
+        active_cells.forEach((cell,i,arr)=>{
             const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
 
             this.s_ctx.fillStyle=cell.is_hidden_layer==true?cell.activation_value>0?"#ffff00":"#00ffff":cell.activation_value>0?"#ff0000":"#0000ff";
@@ -60,6 +60,16 @@ class Board {
                 
                 this.s_ctx.fillRect(x,y,40,40)
         })
+    }
+    draw_brain(brain){
+        //    console.log(brain);
+        this.s_blank();
+        console.log(brain.cells.length,"is size");
+        this.draw_brain_cells(brain);
+
+        this.draw_brain_connections(brain);
+
+
 
         this.s_ctx.fillStyle="#ffffff";
         this.s_ctx.font = 'bold 48px serif';

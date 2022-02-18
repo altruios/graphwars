@@ -154,6 +154,7 @@ class Neat_Controller{
 		const triangles = this.get_all_triangles(living_nodes);
 		this.reward_triangles(triangles)
 	}
+
 	render() {
         const living_nodes = this.get_living_nodes();
 		this.step(living_nodes);
@@ -172,7 +173,7 @@ class Neat_Controller{
 			const write_out={
 				exists:false
 			}
-			write_out.exists=true;
+		//	write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
