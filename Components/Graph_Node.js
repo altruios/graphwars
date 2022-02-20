@@ -195,7 +195,10 @@ class Graph_Node {
 		return this.Brain.get_scream();
 	}
 	reward(){
-		this.win_count++;
+		this.fitness+=1;
+	}
+	punish(){
+		this.fitness=Math.max(0.1,this.fitness-1);
 	}
 	get_dna(){
 		let str = "";

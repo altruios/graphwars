@@ -25,7 +25,7 @@ const game_options={
 	height: 1080*2,
 	width:1920*2,
   render_speed:31,
-  max_render_count: 1,
+  max_render_count: 1000,
 	epoc_level:910000,
   notice_range:150,
 	visual_range: 300,

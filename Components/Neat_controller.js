@@ -37,7 +37,7 @@ class Neat_Controller{
 		set_render_count(){
 			this.game_count++;
 			this.render_count = 0;
-			this.max_render_count=this.game_count;
+			this.max_render_count+=1;
 			console.log("setting render",this.game_count);
 		}
 		set_socket(socket){
@@ -156,8 +156,13 @@ class Neat_Controller{
 	reward(living_nodes){
 		living_nodes.forEach(node=>node.update_fitness(0.01));
 		living_nodes=this.fuck_over_wall_huggers(living_nodes);
-		const triangles = this.get_all_triangles(living_nodes);
-		this.reward_triangles(triangles)
+		const rewarded_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type===x.type));
+		const punished_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type!==x.type));
+		rewarded_nodes.forEach(n=>n.reward())
+		punished_nodes.forEach(n=>n.punish())
+
+	//	const triangles = this.get_all_triangles(living_nodes);
+	//	this.reward_triangles(triangles)
 	}
 
 	render() {
