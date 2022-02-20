@@ -151,11 +151,11 @@ class Neat_Brain{
         const hidden_layer = [];
         parent_1_hidden_layer.forEach(cell=>hidden_layer.push(cell));
         parent_2_hidden_layer.forEach(cell=>!hidden_layer.some(x=>x.id==cell.id)?hidden_layer.push(cell):null);
-        console.log("hidden-layer-length");
+     //   console.log("hidden-layer-length");
         const t1=parent_1_hidden_layer.map(x=>x.id);
         const t2=parent_2_hidden_layer.map(x=>x.id);
         const test = new Set([...t1,...t2]).size;
-        console.log(hidden_layer.length,"should = ", test,t1.length,t2.length);
+     //   console.log(hidden_layer.length,"should = ", test,t1.length,t2.length);
 
         const new_cells = [...input_layer,...hidden_layer,...output_layer];
         new_cells.forEach(cell=>{
@@ -171,6 +171,7 @@ class Neat_Brain{
             const parent1_gene =parent_1.cells.find(x=>x.layer_number==cell.layer_number&&x.layer_index==cell.layer_index)?.bias 
             const parent2_gene =parent_2.cells.find(x=>x.layer_number==cell.layer_number&&x.layer_index==cell.layer_index)?.bias 
             cell.bias = parent2_gene?Math.random()>.5?parent2_gene:parent1_gene:parent1_gene;
+            if(!cell.bias) cell.bias=Math.random()*2-1
         })
 
 
@@ -281,7 +282,7 @@ class Neat_Brain{
         if(Math.random()>0.987937){
        //     console.log(value,guard,"changed cell structure - should be rare");
 
-            if(Math.random()>.97456456){
+            if(Math.random()>.8456456){
                 const found = this.cells.filter(x=>!x.is_active)
                 if(found.length>0){
                     console.log("reactivating cell");
@@ -365,7 +366,7 @@ class Neat_Brain{
 		return this.cells.filter(x => x.is_answer_layer);
 	}
 	get_input_cells() {
-		return this.cells.filter(x => x.is_input_layer==true);
+		return this.cells.filter(x => x.is_input_layer);
 	}
 	get_scream(){
 		return this.scream
@@ -535,10 +536,12 @@ class Neat_Cell{
         }
         return obj;
     }
+
     child(template){
+        
         this.Brain=template.Brain;
         this.activation_value=template.activation_value;
-        this.bias=template.bias;
+        this.bias=Number(template.bias)||Math.random();
         this.id=template.id;
         this.is_answer_layer=template.is_answer_layer;
         this.is_hidden_layer=template.is_hidden_layer;
@@ -546,6 +549,9 @@ class Neat_Cell{
         this.layer_number=template.layer_number;
         this.layer_index=template.layer_index;
         this.is_active=template.is_active;
+        this.mutation = template.mutation;
+        this.mutation_counter = template.mutation_counter;
+
     }	
 
 	setActivation_Value() {
@@ -575,6 +581,7 @@ class Neat_Cell{
         if(Math.random()>g){
             this.bias=this._mutate(this.bias,v)
 		}
+        console.assert(this.bias!=null,"this.id:",this.id,"bias is null?");
     }
     _mutate(val,p){
 		this.mutation_counter++;

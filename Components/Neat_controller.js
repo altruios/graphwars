@@ -178,7 +178,7 @@ class Neat_Controller{
 			const write_out={
 				exists:false
 			}
-			write_out.exists=true;
+			//write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -225,11 +225,15 @@ ${pad("",100,"#")}`);
 		this.reactivate_nodes();
 	}
     neat_algorithm(wn){
-		console.log("!!!NEAT ALOGORITHM\n\n\n");
+		console.time("neat");
+		console.log("!!!NEAT ALOGORITHM");
         const pool = this.get_mating_pool();
         this.set_next_brains(pool,wn,this.champion)
 
-		console.log("\n\n\nNEAT ALOGORITHM!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n");
+
+		console.log("NEAT ALOGORITHM!!!!")
+		console.timeEnd("neat");		
+//console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n");
     };
     seperate_into_species(){
         const species_pool=[];
