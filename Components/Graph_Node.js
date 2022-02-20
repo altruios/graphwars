@@ -209,7 +209,7 @@ class Graph_Node {
 		return str
 	}
 	become_child_of(b1,b2){
-		this.Brain = new Neat_Brain(this,b1,b2)
+		this.Brain.child(b1,b2)
 	}
 }
 export default Graph_Node

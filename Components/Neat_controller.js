@@ -25,7 +25,7 @@ class Neat_Controller{
         this.species_threshold=4;
 		this.best_living_count=0;
 		this.render_count = 0;
-		this.game_count = 0;
+		this.game_count = 1;
 		this.brain_template = null;
 		this.fitest_node=null;
 		this.last_average_fitness=1;
@@ -34,7 +34,12 @@ class Neat_Controller{
 		this.run.bind(this);
 		this.socket=null;
 		}
-		
+		set_render_count(){
+			this.game_count++;
+			this.render_count = 0;
+			this.max_render_count=this.game_count;
+			console.log("setting render",this.game_count);
+		}
 		set_socket(socket){
 			console.log("setting socket");
 			this.socket=socket;
@@ -173,7 +178,7 @@ class Neat_Controller{
 			const write_out={
 				exists:false
 			}
-		//	write_out.exists=true;
+			write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -207,8 +212,8 @@ ${pad("",100,"#")}`);
 		else that.render();
 	}
 	new_game(winning_node) {
-		this.render_count = 0;
-		this.game_count++;
+		this.set_render_count();
+		
 		const fitness_win = winning_node.fitness >= this.best_fitness;
 		const average_fitness = this.get_average_fitness();
 		this.last_average_fitness=average_fitness;
@@ -232,7 +237,6 @@ ${pad("",100,"#")}`);
 
         let ln = this.get_living_nodes();
         while(ln.length>0){
-			console.log("ln length",ln.length);
 			const ri = Math.floor(Math.random()*ln.length);
             
 			const random_species_sample=ln[ri]
@@ -240,7 +244,6 @@ ${pad("",100,"#")}`);
 			random_species_sample.species=random_species_sample.species||species_pool.length;
 			ln=ln.filter(x=>x.id!=random_species_sample.id);
 			const removed=[];
-			console.log("ln len",ln.length)
             for(let i=0;i<ln.length;i++){
                 if(this.determin_species(random_species_sample.Brain,ln[i].Brain)){ //template 
 					const li = species_pool.length-1; //last index
@@ -257,7 +260,6 @@ ${pad("",100,"#")}`);
 			this.species_threshold-=0.05
 
 		}
-		console.log("count of species",species_pool.length);
         return species_pool;
     }
     determin_species(template,sample){
@@ -277,17 +279,14 @@ ${pad("",100,"#")}`);
             species.sort((a,b)=>a.fitness-b.fitness)
 			const surviving_half = species.slice(Math.floor((species.length-1)/2))
             surviving_half.forEach(sh=>acc.push(sh))
-			console.log("surving half", surviving_half.length,species.length)
             return acc;
         },[])
 
 		const mating_pool=[];
-		console.log(mating_pond.length,mating_nodes.length,"mating nodes length:");
 
 		mating_nodes.forEach(node=>{
 			if(!node){console.log('what the what?',mating_nodes.length);return}
 			let mate_fitness = do_to_co(node.fitness,[0.1,this.best_fitness*2],[0.001,100])
-			console.log(mate_fitness,"is ",node.id,"fitness score",node.species);
 			for(let i =0;i<mate_fitness;i++){
 				mating_pool.push(node);
 			}
@@ -326,18 +325,15 @@ ${pad("",100,"#")}`);
     reactivate_nodes(){this.collections.forEach(node=>node.set_is_activated(true))}
     scatter_nodes(){this.collections.forEach(node=>node.scatter())}
 	fuck_over_wall_huggers(ln){
-		let x=0;
 		ln.forEach(c=>{
 			if(c.x<=0||c.y<=0||c.x>=this.width||c.y>=this.height){
 				c.set_is_activated(false);
-				x++
 			}
 		})
 		return ln
 	}
 	evaluate() {
 		console.log("\n\nwinner winner chicken dinner\n\n")
-
 		const survivers = this.get_living_nodes();
 		this.fuck_over_wall_huggers(survivers)
 		const winners = this.get_living_nodes();
