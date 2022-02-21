@@ -22,8 +22,7 @@ class Neat_Brain{
         }else{
             this.generation_number = 1+template.generation_number;
             this.child(template,template2);
-            this.deactivate_vestigial_cells();
-            this.deactivate_vestigial_weights();
+
         }
 	}
 
@@ -191,7 +190,8 @@ class Neat_Brain{
                 }
             }  
         })
-        
+        this.deactivate_vestigial_cells();
+        this.deactivate_vestigial_weights();
         this.all_hidden_cells_connected();
     }
     sort_cells(){
@@ -263,7 +263,7 @@ class Neat_Brain{
             ac.forEach(c=>Math.random<guard?c.weight=Math.random()-1*2:null)        }
     }
     mutate_weight(value,guard){
-
+        console.log("guard is",guard);
         if(Math.random()>guard){
             const ac= this.get_active_connections();
             const i = Math.floor(do_to_co(value,[-1,1],[0,ac.length-1]))
@@ -272,7 +272,7 @@ class Neat_Brain{
             try{
             target_con.mutate(value,guard);
             }catch{
-                console.error(ac,i,"could not mutate?");
+                console.error(target_con,value,ac.length,"could not mutate?");
             }
         } 
     }

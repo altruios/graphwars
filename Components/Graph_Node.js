@@ -65,8 +65,10 @@ class Graph_Node {
         this.x=randx;
         this.y=randy;
     }
+
     mutate_next(p,g){
         this.last_performance=p;
+		console.log(this.last_performance);
         this.Brain.mutate_next(p,g);
     }
 	update_fitness(amount) {
@@ -194,11 +196,11 @@ class Graph_Node {
 	scream(){
 		return this.Brain.get_scream();
 	}
-	reward(){
-		this.fitness+=1;
+	reward(amount){
+		this.fitness+=amount;
 	}
-	punish(){
-		this.fitness=Math.max(0.1,this.fitness-1);
+	punish(amount){
+		this.fitness=Math.max(0.1,this.fitness-amount);
 	}
 	get_dna(){
 		let str = "";

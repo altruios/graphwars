@@ -158,8 +158,8 @@ class Neat_Controller{
 		living_nodes=this.fuck_over_wall_huggers(living_nodes);
 		const rewarded_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type===x.type));
 		const punished_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type!==x.type));
-		rewarded_nodes.forEach(n=>n.reward())
-		punished_nodes.forEach(n=>n.punish())
+		rewarded_nodes.forEach(n=>n.reward(n.connections.filter(x=>x.type===n.type).length));
+		punished_nodes.forEach(n=>n.punish(n.connections.filter(x=>x.type!==n.type).length));
 
 	//	const triangles = this.get_all_triangles(living_nodes);
 	//	this.reward_triangles(triangles)
@@ -316,15 +316,18 @@ ${pad("",100,"#")}`);
                     return;
                 }
                 //p value weights in perceptron cells change by
-                //g is guard against mutation value - a higher number =  more likely to mutate
-                const p = node.fitness/this.best_fitness;
-                const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
-                const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
+                //g is guard against mutation value - a higher number 
+				const p1 = Math.floor(Math.random()*(mating_pool.length-1))										
                 const parent_1 = mating_pool[p1].Brain;
 				let filtered_pool = mating_pool.filter(x=>x.id!=parent_1.id);
                 let p2 = Math.floor(Math.random()*(filtered_pool.length-1))
                 let parent_2 = filtered_pool[p2]?.Brain||champion;
                 node.become_child_of(parent_1,parent_2);
+                
+				const p = parent_1.host.fitness/parent_2.host.fitness;
+
+				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
+
                 node.mutate_next(p,g)		
             }
         })
