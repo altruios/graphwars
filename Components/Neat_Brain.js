@@ -225,37 +225,37 @@ class Neat_Brain{
         }
     }
     add_weight(){
-        const found = this.connections.filter(x=>x.is_activated==false)[Math.floor(this.connections.length-1*Math.random())]
-        found?.enable();
+        const ac = this.get_active_connections();
+        const found = ac.filter(x=>x.is_activated==false)[Math.floor(ac.length-1*Math.random())]
         if(!found){
-            const t1= this.cells[Math.floor(this.cells.length*Math.random())]
-            const uniquecells = this.cells.filter(x=>x.id!==t1.id);
+            const acells=this.get_active_cells();
+            const t1= acells[Math.floor(acells.length*Math.random())]
+            const uniquecells = acells.filter(x=>x.id!==t1.id);
             const t2= uniquecells[Math.floor(uniquecells.length*Math.random())]
             const things=[t1,t2].sort((a,b)=>a.layer_number-b.layer_number);
             if(things[0].layer_number==this.depth||things[1].layer_number==0){return}
             const c = new Connection(t1,t2);
-            if(this.connections.some(x=>x.in_id==c.in_id)){
-                return
-            }
+            if(this.connections.some(x=>x.in_id==c.in_id)){return}
             this.connections.push(c);
-
+        }else{
+            found.enable();
         }
     }
     delete_weight(){
-        const found = this.connections.filter(x=>x.is_activated==true);
+        const found = this.get_active_connections();
         const potential = found.filter((x,i,arr)=>(
             x.n1.id==arr.find(y=>y.in_id!=x.in_id&&(y.n1.id==x.n1.id||y.n1.id==x.n2.id)))
             &&
             x.n2.id==arr.find(y=>(y.in_id!=x.in_id&&(y.n2.id==x.n1.id||y.n2.id==x.n2.id)))
             )
         const target = potential[Math.floor(Math.random()*potential.length-1)]
-        target?.disable();
+        if(target)target.disable();
     }
 
     sanity_check(added_node){
         if( added_node.layer_number!=0&&
-            added_node.layer_number!=this.depth) //more later
-        return true
+            added_node.layer_number!=this.depth)
+            return true
     }
     randomize_weight(value,guard){
         if(Math.random()>value){
@@ -312,12 +312,7 @@ class Neat_Brain{
                 const targets = this.get_hidden_cells();
                 const target = targets[Math.floor(Math.random()*targets.length)];
                 if(target){
-                    console.log("removing cell!!!!");
-
                     this.remove_cell(target) 
-                }
-                else{
-                    this.add_or_delete_cell()
                 }
             }
         }
@@ -412,7 +407,7 @@ class Neat_Brain{
     }
 	remove_cell(target) {
         console.log('diabling cell');
-		const found = this.cells.find(x=>x==target);//sanity checks
+		const found = this.get_hidden_cells().find(x=>x==target);//sanity checks
         if(!found) return
         found.deactivate()
         this.remove_connections(found);

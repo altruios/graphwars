@@ -33,6 +33,11 @@ class Neat_Controller{
         this.init_collection();
 		this.run.bind(this);
 		this.socket=null;
+		this.examined_brain=null;
+		this.set_examined_brain('node-0');
+		}
+		set_examined_brain(id){
+			this.examined_brain=this.collections.find(x=>x.id==id)?.Brain||this.collections[0].Brain;
 		}
 		set_render_count(){
 			this.game_count++;
@@ -324,10 +329,13 @@ ${pad("",100,"#")}`);
                 let parent_2 = filtered_pool[p2]?.Brain||champion;
                 node.become_child_of(parent_1,parent_2);
                 
-				const p = parent_1.host.fitness/parent_2.host.fitness;
+				const p = Math.tanh(parent_1.host.fitness/parent_2.host.fitness);
 
 				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
-
+				if(isNaN(p)){
+					console.log(p,g,"something wrong captain");
+					
+				}
                 node.mutate_next(p,g)		
             }
         })
@@ -375,7 +383,7 @@ ${pad("",100,"#")}`);
 		const ln = this.get_living_nodes();
 		const game_stats = this.get_game_stats();		
 		const nodes = this.collections.map(x=>x.shallow_copy());
-		const brain = (ln).sort((a,b)=>a.Brain.get_active_cells().length - b.Brain.get_active_cells().length)[ln.length-1].Brain.copy_data();
+		const brain = this.examined_brain.copy_data();
 		const triangles = this.get_all_triangles(ln).map(x=>x.map(y=>y.id));
 
 		return {game_stats,nodes,triangles,brain}	

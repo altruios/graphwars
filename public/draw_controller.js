@@ -144,13 +144,14 @@ class Board {
     }
     highlight_target_node(ln,nodeid){
         this.ctx.fillStyle=`rgba(255,0,0,.2)`;
-        const fittest_node=ln.find(x=>x.id==nodeid);
+        const tn=ln.find(x=>x.id==nodeid);
+        if(!tn){return}
         this.ctx.beginPath();
-        this.ctx.arc(fittest_node.x,fittest_node.y,this.data.game_stats.visual_range,0,Math.PI*2);
+        this.ctx.arc(tn.x,tn.y,this.data.game_stats.visual_range,0,Math.PI*2);
         this.ctx.fill()
         this.ctx.fillStyle=`rgba(0,255,255,.2)`;
         this.ctx.beginPath();
-        this.ctx.arc(fittest_node.x,fittest_node.y,this.data.game_stats.notice_range,0,Math.PI*2);
+        this.ctx.arc(tn.x,tn.y,this.data.game_stats.notice_range,0,Math.PI*2);
         this.ctx.fill()
     }
     get_fitest_node(nodes){

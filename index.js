@@ -44,7 +44,11 @@ console.log("hello!")
 
 io.on('connection', (socket) => {  
   console.log('a user connected')
-  
+  socket.on("node_set",(data)=>{
+  //`node-${id}`
+    console.log("data",data);
+    game.set_examined_brain(data);
+  })
   game.set_socket(socket)
 
   socket.on("disconnect", () => {

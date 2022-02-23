@@ -3,24 +3,32 @@
     <body>
         <header style="display: block;">GRAPH WARS</header>
         <div id="content">
-        <div id="left">
+            <div id="left">
+                <div>
+                    <canvas id="canvas" height="420" width="420"></canvas>
+                </div>
             <div>
-            <canvas id="canvas" height="420" width="420"></canvas>
-        </div><div>
-        </div>
+                <button id="set_node_btn">set node</button>
+                <input  id="set_node_inp" type="number" />
+               
+            </div>
             <div id="hdisplay"></div>
     
         </div>
         <div id="right">
             <canvas id="canvas2" height="1040" width="3600"></canvas>
 
-            <div id="display"></div>
+            <div id="display">
+               
+            </div>
         </div>        
     </div>
     </body>
     <script src="/socket.io/socket.io.js"></script>
     <script src="./draw_controller.js"></script>
     <script>
+        const set_node_btn=document.getElementById("set_node_btn");
+        const set_node_inp=document.getElementById("set_node_inp");
         var socket = io();
         const canvas = document.getElementById('canvas')
         const canvas2 = document.getElementById('canvas2')
@@ -33,5 +41,11 @@
             const data = JSON.parse(d);
             board.next_image(data)
         })
+
+        set_node_inp.addEventListener("change",(e)=>{
+            const id = Number(e.target.value)||0;
+            socket.emit("node_set",`node-${id}`);
+        })
+
     </script>
 </html>
