@@ -221,7 +221,7 @@ ${pad("",100,"#")}`);
 	}
 	new_game(winning_node) {
 		this.set_render_count();
-		console.log("winning node - type",winning_node);
+		console.log("winning node - type",winning_node.id);
 		const fitness_win = winning_node.Brain.fitness >= this.best_fitness;
 		const average_fitness = this.get_average_fitness();
 		this.last_average_fitness=average_fitness;
@@ -241,7 +241,7 @@ ${pad("",100,"#")}`);
 
 		console.log("NEAT ALOGORITHM!!!!")
 		console.timeEnd("neat");		
-//console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n");
+		console.log("\n\n\n\n\n\n\n\n\n\n\n\n");
     };
     seperate_into_species(){
         const species_pool=[];
