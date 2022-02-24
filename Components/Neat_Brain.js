@@ -11,7 +11,6 @@ class Neat_Brain{
         this.host = host;
         this.scream=0;
 		this.last_move_vec = [0, 0, 0, 0];
-		this.last_fitness = this.host.fitness;
         this.fitness=1;
         this.species=0;//iffy
         this.vision_number=4;
@@ -111,11 +110,16 @@ class Neat_Brain{
 
 
     }
+
+    remove_vestigials(){
+       this.deactivate_vestigial_cells();
+       this.deactivate_vestigial_weights();
+    }
     deactivate_vestigial_cells(){
         this.cells.forEach(x=>this.get_active_connections().every(c=>c.n1.id!=x.id&&c.n2.id!=x.id)?x.deactivate():x.activate())
     }
     deactivate_vestigial_weights(){
-        this.connections.forEach(x=>this.get_active_cells().some(cell=>x.n1.id==cell.id||x.n2.id==cell.id)?null:x.disable())
+        this.connections.forEach(x=>this.get_active_cells().every(cell=>x.n1.id!==cell.id&&x.n2.id!==cell.id)?x.disable():null)
     }
     get_active_cells(){
         return this.cells.filter(x=>x.is_active);
@@ -130,7 +134,7 @@ class Neat_Brain{
     		connections:this.connections.map(x=>x.copy_data()),
             scream:this.scream,
             last_move_vec:this.last_move_vec,
-            last_fitness: this.last_fitness,
+            fitness: this.fitness,
             species:this.species,
             host_id:this.host_id,
 
@@ -174,25 +178,26 @@ class Neat_Brain{
         })
 
 
-        const new_conns_all = [...parent_2.connections,...parent_1.connections.filter(x=>!parent_2.connections.some(y=>y.is(x)))];
-        new_conns_all.forEach(conn=>(!parent_2.connections.some(x=>x.is(conn))?conn.disable():null))
+        const parent_2_conns = parent_2.connections;
+        const parent_1_cons = parent_1.connections.filter(conn=>!parent_2.connections.some(c=>c.is(conn)))
+        const new_conns = [...parent_2_conns,...parent_1_cons];
+        new_conns.forEach(conn=>{
+            const found = this.connections.find(x=>x.is(conn));
+            if(found){
+                found.child(conn);
+            }else{
+                this.connections.push(new Connection(conn.n1,conn.n2,conn.w))
+            }
+        })
 
-        new_conns_all.forEach(conn=>{
-            const found = this.connections.find(x=>x.is(conn))
-            if(!found) this.connections.push(new Connection(conn.n1,conn.n2,conn.weight));
-            else found.child(conn);
-        })
-        this.connections.forEach(conn=>{
-            const parent2_phene = parent_1.connections.find(c=>c.is(conn))?.weight;
-            if(parent2_phene){
-                if(Math.random()>.5){
-                    conn.set_w(parent2_phene)
-                }
-            }  
-        })
-        this.deactivate_vestigial_cells();
-        this.deactivate_vestigial_weights();
+
+
+
+        this.remove_vestigials();
+        this.remove_vestigials();
         this.all_hidden_cells_connected();
+        this.i_am_sane();
+
     }
     sort_cells(){
         //sort by matrix to arr math?
@@ -235,7 +240,7 @@ class Neat_Brain{
             const things=[t1,t2].sort((a,b)=>a.layer_number-b.layer_number);
             if(things[0].layer_number==this.depth||things[1].layer_number==0){return}
             const c = new Connection(t1,t2);
-            if(this.connections.some(x=>x.in_id==c.in_id)){return}
+            if(this.connections.some(x=>x.is(c))){return}
             this.connections.push(c);
         }else{
             found.enable();
@@ -244,9 +249,9 @@ class Neat_Brain{
     delete_weight(){
         const found = this.get_active_connections();
         const potential = found.filter((x,i,arr)=>(
-            x.n1.id==arr.find(y=>y.in_id!=x.in_id&&(y.n1.id==x.n1.id||y.n1.id==x.n2.id)))
+            x.n1.id==arr.find(y=>!y.is(x)&&(y.n1.id==x.n1.id||y.n1.id==x.n2.id)))
             &&
-            x.n2.id==arr.find(y=>(y.in_id!=x.in_id&&(y.n2.id==x.n1.id||y.n2.id==x.n2.id)))
+            x.n2.id==arr.find(y=>(!y.is(x)&&(y.n2.id==x.n1.id||y.n2.id==x.n2.id)))
             )
         const target = potential[Math.floor(Math.random()*potential.length-1)]
         if(target)target.disable();
@@ -260,7 +265,7 @@ class Neat_Brain{
     randomize_weight(value,guard){
         if(Math.random()>value){
             const ac = this.get_active_connections();
-            ac.forEach(c=>Math.random<guard?c.weight=Math.random()-1*2:null)        }
+            ac.forEach(c=>Math.random<guard?c.randomize_weight():null)        }
     }
     mutate_weight(value,guard){
         if(Math.random()>guard){
@@ -281,7 +286,7 @@ class Neat_Brain{
         if(Math.random()>0.987937){
        //     console.log(value,guard,"changed cell structure - should be rare");
 
-            if(Math.random()>.8456456){
+            if(Math.random()>.9456456){
                 const found = this.cells.filter(x=>!x.is_active)
                 if(found.length>0){
                     console.log("reactivating cell");
@@ -317,8 +322,8 @@ class Neat_Brain{
         }
     }
     update_bias(wf,bf){
-        const g = Math.abs(Math.sin(this.last_fitness / bf));
-        const v = Math.sin(this.last_fitness / wf);
+        const g = Math.abs(Math.sin(this.fitness / bf));
+        const v = Math.sin(this.fitness / wf);
         if(Math.random()>g)this.cells.forEach(c=>c.mutate_bias(v,g));
     }
 
@@ -365,8 +370,8 @@ class Neat_Brain{
 	get_scream(){
 		return this.scream
 	}
-	get_last_fitness() {
-		return this.last_fitness;
+	get_fitness() {
+		return this.fitness;
 	}
 
 	connect_host(host) {
@@ -602,6 +607,7 @@ class Connection{
         this.in_id=template.in_id;
     }
     mutate(p,g){
+        
         if(Math.random()<g){
             this.weight=this._mutate(this.weight,p);
         }
@@ -619,6 +625,9 @@ class Connection{
     is(conn){
         return conn.in_id==this.in_id;
     }
+    is_valid(){
+        return this.n1.is_active&&this.n2.is_active;
+    }
     get_in_id(){
         return __INNOVATION_TABLE(this.n1,this.n2)
     }
@@ -626,9 +635,13 @@ class Connection{
         this.weight=w;
     }
     enable(){
+        this.mutation_counter++;
+
         this.is_active=true;
     }
     disable(){
+        this.mutation_counter++;
+
         this.is_active=false;
     }
     other_node(node){
@@ -637,6 +650,11 @@ class Connection{
     }
     has(n){
         return this.n1.id==n.id||this.n2.id==n.id;
+    }
+    randomize_weight(){
+        this.mutation_counter++;
+        const sign =Math.random()>0.5?1:-1; 
+        this.weight= Math.random()*sign;
     }
     _mutate(val,p){
 		this.mutation_counter++;
