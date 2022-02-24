@@ -27,7 +27,7 @@ class Board {
         const active_conns = brain.connections.filter(x=>x.is_active)
         const arr = brain.cells.filter(x=>x.is_active);
         active_conns.forEach((conn,i)=>{
-            if(conn.is_activated==false) return
+            if(conn.is_active==false) return
             const cell = brain.cells.find(x=>x.id==conn.n1);
             const cell2 = brain.cells.find(x=>x.id==conn.n2);
             const depth = arr.filter(x=>x.layer_number==cell.layer_number).length;
@@ -168,60 +168,62 @@ class Board {
         }
         this.header_display.appendChild(stats_div)
     }
-    update_node_data_display(data){
+    update_brain_display(brain){
         removeAllChildNodes(this.display);
-        const node_container_div = document.createElement('table');
-        node_container_div.classList.add("nodetable")
-        const nodes = data.nodes.sort(compare_fitness);
-        const table_header = document.createElement('tr');
-        for(let prop in nodes[0]){
-            if(prop==="is_activated") continue
-            if(prop==="connections") prop = "c"
-            if(prop==="mutation_value") prop = "m"
-            const div = document.createElement('th');
-                div.innerText = prop
-                table_header.appendChild(div);
+
+        const cell_table = document.createElement("table");
+        const cell_table_header = document.createElement("thead");
+            for(const prop in brain.cells[0]){
+                const table_cell = document.createElement("td");
+                table_cell.innerText=prop;
+                cell_table_header.appendChild(table_cell);
             }
-        node_container_div.appendChild(table_header);
-        //make body
-        for(const node of nodes){
-            const node_div = document.createElement('tr');
-            const that = this;
-            const color = node.is_activated==true?"alive":"dead";
-            node_div.dataset.color=color
-            node_div.classList.add("node_div")
-            for(const prop in node){
-                if(prop==="is_activated") continue
-                const div = document.createElement('td');
-                if(prop==="id"){
-                    div.id=node[prop]
-                    div.addEventListener('click',(e)=>{
-                        console.log("clicked!@#!@#!@#");
-                        const id = e.target.id;
-                        console.log("id",id,e);
-                        that.target_node=id;
-                        console.log(that.target_node,"is now changed?");
-                    })
-                }
-                div.classList.add(prop);
-                div.dataset.color=color;
-                if(Array.isArray(node[prop])){
-                    div.innerText = node[prop].length
-                }
-                else if(!isNaN(node[prop])&& typeof node[prop] !== "boolean"){
-                    div.innerText = node[prop]
-                }
-                else{
-                    div.innerText =node[prop]
-                }
-                node_div.appendChild(div);
+        
+        const cell_table_rows = brain.cells.map(cell=>{
+
+            const cell_table_row = document.createElement("tr");
+            for(const prop in cell){
+                const table_cell = document.createElement("td");
+                table_cell.style.backgroundColor=color(cell[prop]);
+                table_cell.innerText=cell[prop];
+                cell_table_row.appendChild(table_cell);
             }
-            node_container_div.appendChild(node_div);
+            return cell_table_row;
+        })
+        
+        cell_table.appendChild(cell_table_header);
+        cell_table_rows.forEach(row=>cell_table.appendChild(row));
+
+
+        const connections_table = document.createElement('table');
+        const connections_table_header = document.createElement("thead");
+        for(const prop in brain.connections[0]){
+            const conn_prop = document.createElement("td");
+            conn_prop.innerText=prop;
+            connections_table_header.appendChild(conn_prop);
         }
-        this.display.appendChild(node_container_div);
+        const connections_table_rows = brain.connections.map(conn=>{
+            const conn_table_row = document.createElement("tr");
+            for(const prop in conn){
+                const isCellID=brain.cells.find(x=>x.id==conn[prop]);
+
+                const conn_cell = document.createElement("td");
+                conn_cell.style.backgroundColor=isCellID?color(isCellID.is_active):color(conn[prop]);
+                conn_cell.innerText=conn[prop];
+                conn_table_row.appendChild(conn_cell);
+            }
+            return conn_table_row
+        })
+        connections_table.appendChild(connections_table_header);
+        connections_table_rows.forEach(row=>connections_table.appendChild(row));
+
+
+        this.display.appendChild(cell_table);
+        this.display.appendChild(connections_table);
     }
     update_display(data){
         this.update_meta_data_display(data.game_stats)
+        this.update_brain_display(data.brain)
     }
 	blank() {
 		this.ctx.fillStyle = this.bg_color;
@@ -241,7 +243,7 @@ class Board {
         console.time("next_image")
         this.set_height_and_width(data)
         this.data=data;
-        this.draw(data.nodes.filter(x=>x.is_activated==true),data.triangles,data.brain);
+        this.draw(data.nodes.filter(x=>x.is_active==true),data.triangles,data.brain);
         this.draw_brain(data.brain);
         this.render_count=data.render_count;
         this.update_display(data); //time for a framework react... redux?
@@ -272,9 +274,10 @@ const do_to_pos=(val,o_r)=>do_to_co(val,o_r,[0,1]);
 const do_to_real=(val,o_r)=>do_to_co(val,o_r,[-1,1]);
 const compare_fitness = (a,b)=> b.fitness - a.fitness
 const typer =(t)=>t=="A"?"#ff0000":t=="B"?"#00ff00":"#0000ff";
-const compare_is_active = (a,b)=>(a.is_activated===b.is_activated)?0:a.is_activated?-1:1
+const compare_is_active = (a,b)=>(a.is_active===b.is_active)?0:a.is_active?-1:1
 function removeAllChildNodes(parent) {
     while (parent.firstChild) {
         parent.removeChild(parent.firstChild);
     }
 }
+const color=(value)=>!isNaN(value)?value>0?"#99ff99":"#ff9999":"#ffffff";

@@ -89,6 +89,7 @@ class Neat_Controller{
             if(triangle.every((node,i,arr)=>node.type!=arr[(i+1)%arr.length==0]).type) reward_type=500
 			const area = this.triangle_area(triangle);
 			const reward =Math.floor(Math.sqrt((area)/reward_type))
+			console.log("reward is:",reward);
 			triangle.forEach(node => node.update_fitness(reward))
         })
 	}
@@ -99,8 +100,8 @@ class Neat_Controller{
 				const eatee = node.r < other_node.r ? node : other_node;
 				const distance = eater.get_distance_between_edges(eatee);
 				if (distance <= 0 && this.get_living_nodes().length > 0) {
-					eatee.fitness=1;
-					eater.fitness=1;
+					eatee.Brain.fitness=1;
+					eater.Brain.fitness=1;
 					if (eater.type == eatee.type) {
 						eater.change_type();
 						eater.impulse_away_from(eatee);
@@ -156,16 +157,12 @@ class Neat_Controller{
 		console.timeEnd("pushnode");
 		console.count("x");
 	}
-	find_fitest_node(nodes){return nodes.sort((a,b)=>b.fitness-a.fitness)[0]}
-    get_living_nodes(){return this.collections.filter(x=>x.is_activated)}
+	find_fitest_node(nodes){return nodes.sort((a,b)=>b.Brain.fitness-a.Brain.fitness)[0]}
+    get_living_nodes(){return this.collections.filter(x=>x.is_active)}
 	reward(living_nodes){
 		living_nodes.forEach(node=>node.update_fitness(0.01));
 		living_nodes=this.fuck_over_wall_huggers(living_nodes);
-		const rewarded_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type===x.type));
-		const punished_nodes = living_nodes.filter(x=>x.connections.find(y=>y.type!==x.type));
-		rewarded_nodes.forEach(n=>n.reward(n.connections.filter(x=>x.type===n.type).length));
-		punished_nodes.forEach(n=>n.punish(n.connections.filter(x=>x.type!==n.type).length));
-
+		living_nodes.forEach(n=>n.update_fitness(n.connections.filter(x=>x.type===n.type).length)-n.connections.filter(x=>x.type!==n.type).length);
 	//	const triangles = this.get_all_triangles(living_nodes);
 	//	this.reward_triangles(triangles)
 	}
@@ -188,7 +185,7 @@ class Neat_Controller{
 			const write_out={
 				exists:false
 			}
-			//write_out.exists=true;
+			write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -200,7 +197,7 @@ ${pad("",100,"#")}
 ##${pad(that.render_count,13," ")}${pad("",8," ")}${pad(time_end,10," ")}ms${pad("",9," ")}${pad(that.get_living_nodes().length,14," ")}${pad("",8,"  ")} ${pad(that.game_count.toString(),10," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##
 ##  fitest node:${pad("",11," ")}position:${pad("",8," ")}${pad('fitness:',15,' ')}${pad("",4," ")}${pad("connections:",15," ")}${pad("",20," ")}## 
-##${pad("",5," ")}${pad(fitest_node.id,8," ")}${pad("",5," ")}${pad(`x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}`,15," ")}${pad("",11," ")}${pad(fitest_node.fitness.toFixed(1),12," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
+##${pad("",5," ")}${pad(fitest_node.id,8," ")}${pad("",5," ")}${pad(`x:${fitest_node.x.toFixed(0)} ,y:${fitest_node.y.toFixed(0)}`,15," ")}${pad("",11," ")}${pad(fitest_node.Brain.fitness.toFixed(1),12," ")}${pad("",5," ")}${pad(fitest_node.connections.length.toString(),14," ")}${pad("",21," ")}##
 ##${pad("",96," ")}##			
 ##      average:${pad("",7," ")}best average:${pad("",10," ")}last average:${pad("",5," ")}top survival#:${pad("",20," ")}##
 ##  ${pad(that.get_average_fitness().toFixed(2),11," ")}${pad("",8," ")}${pad(that.best_average_fitness.toFixed(2),12," ")}${pad("",15," ")}${pad(that.last_average_fitness.toFixed(2),8," ")}${pad("",16," ")}${pad(that.best_living_count,3," ")}${pad("",21," ")}##
@@ -211,7 +208,8 @@ ${pad("",100,"#")}`);
 		},this.render_speed)
 	}
 	get_average_fitness(){
-		const sum = this.collections.reduce((acc,item)=>{acc+=item.fitness;return acc},0)
+		const sum = this.collections.reduce((acc,item)=>{acc+=item.Brain.fitness;return acc},0)
+
 		const total = this.collections.length;
 		const average = sum/total;
 		return average
@@ -223,12 +221,12 @@ ${pad("",100,"#")}`);
 	}
 	new_game(winning_node) {
 		this.set_render_count();
-		
-		const fitness_win = winning_node.fitness >= this.best_fitness;
+		console.log("winning node - type",winning_node);
+		const fitness_win = winning_node.Brain.fitness >= this.best_fitness;
 		const average_fitness = this.get_average_fitness();
 		this.last_average_fitness=average_fitness;
 		this.best_average_fitness=average_fitness>this.best_average_fitness?average_fitness:this.best_average_fitness;
-		this.best_fitness = this.best_fitness > winning_node.fitness ? this.best_fitness : winning_node.fitness;
+		this.best_fitness = this.best_fitness > winning_node.Brain.fitness ? this.best_fitness : winning_node.Brain.fitness;
 		this.champion = fitness_win ? winning_node.Brain:this.champion;
         this.scatter_nodes();
 		this.neat_algorithm(winning_node); 
@@ -288,9 +286,10 @@ ${pad("",100,"#")}`);
 
     }
 	get_mating_pool(){
-        const mating_pond = this.seperate_into_species();
+        console.log("getting mating pond");
+		const mating_pond = this.seperate_into_species();
         const mating_nodes = mating_pond.reduce((acc,species)=>{
-            species.sort((a,b)=>a.fitness-b.fitness)
+            species.sort((a,b)=>a.Brain.fitness-b.Brain.fitness)
 			const surviving_half = species.slice(Math.floor((species.length-1)/2))
             surviving_half.forEach(sh=>acc.push(sh))
             return acc;
@@ -298,9 +297,10 @@ ${pad("",100,"#")}`);
 
 		const mating_pool=[];
 
+		console.log("mating pond length",mating_pond.length)
 		mating_nodes.forEach(node=>{
 			if(!node){console.log('what the what?',mating_nodes.length);return}
-			let mate_fitness = do_to_co(node.fitness,[0.1,this.best_fitness*2],[0.001,100])
+			let mate_fitness = do_to_co(node.Brain.fitness,[0.1,this.best_fitness*2],[0.001,100])
 			for(let i =0;i<mate_fitness;i++){
 				mating_pool.push(node);
 			}
@@ -329,7 +329,7 @@ ${pad("",100,"#")}`);
                 let parent_2 = filtered_pool[p2]?.Brain||champion;
                 node.become_child_of(parent_1,parent_2);
                 
-				const p = Math.tanh(parent_1.host.fitness/parent_2.host.fitness);
+				const p = Math.tanh(parent_1.fitness/parent_2.fitness);
 
 				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
 				if(isNaN(p)){
@@ -361,18 +361,17 @@ ${pad("",100,"#")}`);
 
 		this.best_living_count=winners.length>this.best_living_count?winners.length:this.best_living_count;
 		const fitest = this.find_fitest_node(winners);
-		if (!fitest) {}
-		fitest.reward();
+		if (!fitest) {console.log("the terror!")};
 		console.log("fitest node is:");
 
 		console.log(fitest.id);
-		console.log(fitest.fitness.toFixed(1), "vs champion of:", this.best_fitness.toFixed(1))
+		console.log(fitest.Brain.fitness.toFixed(1), "vs champion of:", this.best_fitness.toFixed(1))
 		console.log("this was the fitest node: ",fitest.win_count)
 		console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n")
 
 		
 		if(this.game_count==this.epoc_level){
-			console.log(fitest.fitness,"last call");
+			console.log(fitest.Brain.fitness,"last call");
 			return
 		}
 		this.new_game(fitest);

@@ -12,6 +12,7 @@ class Neat_Brain{
         this.scream=0;
 		this.last_move_vec = [0, 0, 0, 0];
 		this.last_fitness = this.host.fitness;
+        this.fitness=1;
         this.species=0;//iffy
         this.vision_number=4;
         this.depth=24
@@ -149,12 +150,11 @@ class Neat_Brain{
         
         const hidden_layer = [];
         parent_1_hidden_layer.forEach(cell=>hidden_layer.push(cell));
-        parent_2_hidden_layer.forEach(cell=>!hidden_layer.some(x=>x.id==cell.id)?hidden_layer.push(cell):null);
-     //   console.log("hidden-layer-length");
-        const t1=parent_1_hidden_layer.map(x=>x.id);
-        const t2=parent_2_hidden_layer.map(x=>x.id);
-        const test = new Set([...t1,...t2]).size;
-     //   console.log(hidden_layer.length,"should = ", test,t1.length,t2.length);
+        parent_2_hidden_layer.forEach(cell=>{
+            if(!hidden_layer.some(x=>x.id==cell.id)){
+                cell.deactivate();
+                hidden_layer.push(cell)}
+        });
 
         const new_cells = [...input_layer,...hidden_layer,...output_layer];
         new_cells.forEach(cell=>{
@@ -226,7 +226,7 @@ class Neat_Brain{
     }
     add_weight(){
         const ac = this.get_active_connections();
-        const found = ac.filter(x=>x.is_activated==false)[Math.floor(ac.length-1*Math.random())]
+        const found = ac.filter(x=>x.is_active==false)[Math.floor(ac.length-1*Math.random())]
         if(!found){
             const acells=this.get_active_cells();
             const t1= acells[Math.floor(acells.length*Math.random())]
@@ -263,7 +263,6 @@ class Neat_Brain{
             ac.forEach(c=>Math.random<guard?c.weight=Math.random()-1*2:null)        }
     }
     mutate_weight(value,guard){
-        console.log("guard is",guard);
         if(Math.random()>guard){
             const ac= this.get_active_connections();
             const i = Math.floor(do_to_co(value,[-1,1],[0,ac.length-1]))
@@ -369,9 +368,7 @@ class Neat_Brain{
 	get_last_fitness() {
 		return this.last_fitness;
 	}
-	set_last_fitness() {
-		this.last_fitness = this.host.fitness;
-	}
+
 	connect_host(host) {
 		this.host = host;
 	}
@@ -420,9 +417,7 @@ class Neat_Brain{
         const data = this.get_data(other_nodes);
         const prediction = this.predict(data);
         this.last_move_vec = this.get_move_vector(prediction);
-		this.set_last_fitness()
         this.set_scream(prediction[4])
-
         return this.last_move_vec;
     }
  
@@ -441,21 +436,22 @@ class Neat_Brain{
 		data.push(this.last_move_vec[3])
 		//details
         data.push(do_to_real(this.host.r,[1,50]));
-        const tf = this.host.ref.best_fitness==1?this.host.fitness:this.host.ref.best_fitness;
-		data.push(do_to_real(this.host.fitness,[1,tf]))
-        data.push(Trool(this.host.type))// type troolian
-        data.push(this.get_scream())
+        const tf = this.host.ref.best_fitness==1?this.fitness:this.host.ref.best_fitness;
+		data.push(do_to_real(this.fitness,[1,tf]))
+        data.push(do_to_real(this.x, [0,this.host.ref.width]))
+        data.push(do_to_real(this.y, [0,this.host.ref.height]))
         const add_all_other_nodes_data=(data,c)=>{
             let ref=other_nodes.sort((a,b)=>this.host.get_distance_between_edges(a)-this.host.get_distance_between_edges(b));
             ref=ref.filter((x,i)=>i<this.vision_number);
             if(ref!=undefined&&ref!=null&&Array.isArray(ref)&&ref.length>0){
 				ref.forEach(node=>{
-					data.push(do_to_real(this.host.get_distance_between_edges(node),[0,this.host.ref.vision_range*2]));
-					data.push(this.host.get_angle(node));
-                    const top_fitness=node.ref.best_fitness==1?node.fitness:node.ref.best_fitness;
-					data.push(do_to_real(node.fitness,[0,top_fitness]))
+                    //(this.x- node.x)(this.y-node.y)
+                    data.push(do_to_real((this.x-node.x),[-this.host.ref.width,this.host.ref.width]))
+                    data.push(do_to_real((this.y-node.y),[-this.host.ref.height,this.host.ref.height]))
+			        const top_fitness=node.ref.best_fitness==1?node.Brain.fitness:node.ref.best_fitness;
+					data.push(do_to_real(node.Brain.fitness,[0,top_fitness]))
 					data.push(do_to_real(node.r,[1,50]));
-					data.push(Trool(node.type))
+					data.push(Trool(this.type,node.type))
 					data.push(node.Brain.scream)
 				})
 
@@ -648,5 +644,5 @@ class Connection{
 		return Math.max(Math.min(p+sign*val,1),-1)
     }
 }
-const Trool = (t)=>t=="A"?-1:t=="B"?0:1;
+const Trool = (t,b)=>t==b?1:-1;
 export default Neat_Brain

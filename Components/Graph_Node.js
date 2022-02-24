@@ -13,10 +13,9 @@ class Graph_Node {
 		this.type = type;
 		this.connections = [];
 		this._deletable = false;
-        this.is_activated=true;
+        this.is_active=true;
 		this.Brain = new Neat_Brain(this, null);
 		this.Brain.connect_host(this);
-		this.fitness = 1;
         this.last_performance = 0;
         this.win_count=0;
 		this.notice_range=ref.notice_range;
@@ -29,8 +28,8 @@ class Graph_Node {
 		y:this.y.toFixed(2),
 		r:this.r.toFixed(2),
 		type:this.type,
-		is_activated:this.is_activated,  
-		fitness:this.fitness.toFixed(2),
+		is_active:this.is_active,  
+		fitness:this.Brain.fitness.toFixed(2),
 		last_p:(this.last_performance*100).toFixed(1),
 		last_x:(this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]).toFixed(2)||0,
 		last_y:(this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]).toFixed(2)||0,
@@ -48,8 +47,8 @@ class Graph_Node {
 			r:this.r,
 			type:this.type,
 			connections:this.connections.map(x=>({x:x.x,y:x.y,id:x.id,connections:x.connections.map(y=>({x:y.x,y:y.y,id:y.id,connections:y.connections.map(z=>({x:z.x,y:z.y,id:z.id}))}))})),
-			is_activated:this.is_activated,  
-			fitness:this.fitness,
+			is_active:this.is_active,  
+			fitness:this.Brain.fitness,
 			last_p:this.last_performance*100,
 			last_x:this.Brain.last_move_vec[0]/this.Brain.last_move_vec[1]||0,
 			last_y:this.Brain.last_move_vec[2]/this.Brain.last_move_vec[3]||0,
@@ -68,12 +67,16 @@ class Graph_Node {
 
     mutate_next(p,g){
         this.last_performance=p;
-		console.log(this.last_performance);
         this.Brain.mutate_next(p,g);
     }
 	update_fitness(amount) {
-		this.fitness += amount;
-		this.fitness = Math.max(this.fitness, 0)
+		if(!isNaN(amount)){
+		this.Brain.fitness += amount;
+		this.Brain.fitness = Math.max(this.Brain.fitness, 0)
+			
+		}else{
+			console.log("fitness update failed")
+		}
 	}
 	get_distance_from_center(other_node) {
 		const dx = (other_node.x - this.x);
@@ -167,13 +170,13 @@ class Graph_Node {
 
     }
     deactivate(){
-		this.fitness=1;
-		this.is_activated=false;
+		this.Brain.fitness=1;
+		this.is_active=false;
         this.connections.forEach(other_node=>this.disconnect(other_node));
     }
     set_is_activated(bool){
-		this.fitness=1
-        this.is_activated=bool;
+		this.Brain.fitness=1
+        this.is_active=bool;
     }
 	isLargest() {
 		const is_largest = this.connections.every(x => x.r < this.r)
@@ -195,12 +198,6 @@ class Graph_Node {
 	}
 	scream(){
 		return this.Brain.get_scream();
-	}
-	reward(amount){
-		this.fitness+=amount;
-	}
-	punish(amount){
-		this.fitness=Math.max(0.1,this.fitness-amount);
 	}
 	get_dna(){
 		let str = "";
