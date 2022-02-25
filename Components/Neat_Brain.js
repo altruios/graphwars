@@ -36,6 +36,7 @@ class Neat_Brain{
                 const reactivation_selections = this.connections.filter(x=>x.n1.id==active_hidden[i].id);
                 const index = Math.floor(reactivation_selections.length*Math.random())
                 if(reactivation_selections.length==0){
+                    console.log("sanity check hit something that shouldn't exit -disabling hidden cell");
                     active_hidden[i].deactivate()
                     const all_connected = this.connections.filter(x=>x.has(active_hidden[i]))
                     all_connected.forEach(c=>c.disable());
@@ -55,71 +56,44 @@ class Neat_Brain{
                 }
             }
         }
+
+    }
+    check_connection(connection){
+            return connection.n1.is_active&&
+            connection.n2.is_active&&
+            (connection.n1.layer_number<connection.n2.layer_number)&&
+            (connection.is_active)
+    }
+    check_cell(cell,ac){
+        return cell.is_active&&ac.filter(x=>x.n1.id==cell.id||x.n2.id==cell.id).length>=2
     }
     i_am_sane(){
         const active_hidden = this.get_hidden_cells();
-        const input_layer = this.get_input_cells();
-        const output_layer=this.get_output_cells();
         const active_connections = this.get_active_connections();
-        const first_connections = active_connections.filter(x=>x.n1.is_input_layer);
-        const last_connections = active_connections.filter(x=>x.n1.is_answer_layer);
-        const mid_connections = active_connections.filter(x=>x.n1.is_hidden_layer);
+        let sanity_check=true;
+        active_hidden.forEach(cell=>{
+            sanity_check=this.check_cell(cell,active_connections);
+            if(!sanity_check){
+                cell.disable();
+                sanity_check=true;
+            }
+        })
+        active_connections.forEach(conn=>{
+            sanity_check=this.check_connection(conn)
+            if(!sanity_check){
+                conn.disable();
+                console.log("failed sanity check conn",sanity_check,conn.in_id);                
+                sanity_check=true;
+            }
+        })
         
-        let sanity_check = true;
-        const connection_checker_backward =(connection,active_connections,sanity_check)=>{
-            if(connection.n1.is_input_layer){sanity_check}
-            else{
-                let backward_connections = active_connections.filter(x=>x.n2.id==connection.n1.id &&x.n2.is_active);
-                for(let i=0;i<backward_connections.length;i++){
-                    sanity_check=connection_checker_backward(backward_connections[i],active_connections,sanity_check);
-                }
-            }
-            return false;
-        }
-        const connection_checker_forward =(connection,active_connections,sanity_check)=>{
-            if(connection.n2.is_answer_layer){sanity_check}
-            else{
-                let forward_connections = active_connections.filter(x=>x.n1.id==connection.n2.id&&x.n1.is_active);
-                for(let i=0;i<forward_connections.length;i++){
-                    sanity_check=connection_checker_forward(forward_connections[i],active_connections,sanity_check);
-                }
-            }
-            return false;
-        }
-        for(let i=0;i<first_connections.length;i++){
-                connection_checker_forward(first_connections[i],active_connections,sanity_check)
-            }
-        for(let i=0;i<last_connections.length;i++){
-            connection_checker_backward(last_connections[i],active_connections,sanity_check)
-        }
 
-        for(let i=0;i<mid_connections.length;i++){
-            connection_checker_forward(mid_connections[i],active_connections,sanity_check)
-            connection_checker_backward(mid_connections[i],active_connections,sanity_check)
-        }
+        
 
-        if(!sanity_check){
-            console.log(input_layer.length,output_layer.length,active_hidden.length)
-            console.log(input_layer.length+output_layer.length+active_hidden.length,this.cells.length);
-            console.log(this.connections.length,active_connections.length);
-            console.log(this.connections.filter(x=>!active_connections.some(y=>y.in_id==x.in_id)).map(x=>`${x.n1.id}=>${x.n2.id}`));
-            console.log("data");
-            throw Error;
-        }
+
         return sanity_check
 
 
-    }
-
-    remove_vestigials(){
-       this.deactivate_vestigial_cells();
-       this.deactivate_vestigial_weights();
-    }
-    deactivate_vestigial_cells(){
-        this.cells.forEach(x=>this.get_active_connections().every(c=>c.n1.id!=x.id&&c.n2.id!=x.id)?x.deactivate():x.activate())
-    }
-    deactivate_vestigial_weights(){
-        this.connections.forEach(x=>this.get_active_cells().every(cell=>x.n1.id!==cell.id&&x.n2.id!==cell.id)?x.disable():null)
     }
     get_active_cells(){
         return this.cells.filter(x=>x.is_active);
@@ -169,6 +143,7 @@ class Neat_Brain{
                 target.child(cell);
             }
         })
+
         //value bias definition
         this.cells.forEach(cell=>{
             const parent1_gene =parent_1.cells.find(x=>x.layer_number==cell.layer_number&&x.layer_index==cell.layer_index)?.bias 
@@ -176,6 +151,7 @@ class Neat_Brain{
             cell.bias = parent2_gene?Math.random()>.5?parent2_gene:parent1_gene:parent1_gene;
             if(!cell.bias) cell.bias=Math.random()*2-1
         })
+
 
 
         const parent_2_conns = parent_2.connections;
@@ -192,11 +168,9 @@ class Neat_Brain{
 
 
 
-
-        this.remove_vestigials();
-        this.remove_vestigials();
         this.all_hidden_cells_connected();
         this.i_am_sane();
+
 
     }
     sort_cells(){
@@ -283,10 +257,9 @@ class Neat_Brain{
     add_or_delete_cell(value,guard)
         {
             //debug
-        if(Math.random()>0.987937){
        //     console.log(value,guard,"changed cell structure - should be rare");
 
-            if(Math.random()>.9456456){
+            if(Math.random()>.9000056456){
                 const found = this.cells.filter(x=>!x.is_active)
                 if(found.length>0){
                     console.log("reactivating cell");
@@ -312,12 +285,12 @@ class Neat_Brain{
                     console.log("adding brand new cell");
                     this.add_cell()
                 }
-            }else{
+            }else if(Math.random()>0.577937){
                 const targets = this.get_hidden_cells();
                 const target = targets[Math.floor(Math.random()*targets.length)];
                 if(target){
                     this.remove_cell(target) 
-                }
+                
             }
         }
     }

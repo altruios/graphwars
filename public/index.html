@@ -10,7 +10,10 @@
             <div>
                 <button id="set_node_btn">set node</button>
                 <input  id="set_node_inp" type="number" />
-               
+                <button id="set_node_btnf">select  node to fitest</button>
+                <button id="set_node_btncon">select node to most brain connections</button>
+                <button id="set_node_btncel">select  node with most brain cells</button>
+
             </div>
             <div id="hdisplay"></div>
     
@@ -29,6 +32,9 @@
     <script>
         const set_node_btn=document.getElementById("set_node_btn");
         const set_node_inp=document.getElementById("set_node_inp");
+        const set_node_btnf=document.getElementById("set_node_btnf");
+        const set_node_btncon=document.getElementById("set_node_btncon");
+        const set_node_btncel=document.getElementById("set_node_btncel");
         var socket = io();
         const canvas = document.getElementById('canvas')
         const canvas2 = document.getElementById('canvas2')
@@ -46,6 +52,17 @@
             const id = Number(e.target.value)||0;
             socket.emit("node_set",`node-${id}`);
         })
+        set_node_btnf.addEventListener("click",()=>{
+            socket.emit("node_set",board.get_fitest_node(board.data.nodes).id);
 
+        })
+        set_node_btncon.addEventListener("click",()=>{
+            socket.emit("node_set",board.get_highest_brain_conn_count(board.data.nodes).id);
+
+        })
+        set_node_btncel.addEventListener("click",()=>{
+            socket.emit("node_set",board.get_highest_brain_cell_count(board.data.nodes).id);
+
+        })
     </script>
 </html>

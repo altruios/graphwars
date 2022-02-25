@@ -156,6 +156,15 @@ class Board {
     }
     get_fitest_node(nodes){
         return nodes.sort((a,b) => b.fitness-a.fitness)[0]
+    }    
+    get_highest_brain_conn_count(nodes){
+        return nodes.sort((a,b) => b.bconns-a.bconns)[0]
+
+    }
+    get_highest_brain_cell_count(nodes){
+        return nodes.sort((a,b) => b.bcells-a.bcells)[0]
+
+
     }
     update_meta_data_display(game_stats){
         removeAllChildNodes(this.header_display);

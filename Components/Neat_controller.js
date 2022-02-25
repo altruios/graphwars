@@ -89,7 +89,6 @@ class Neat_Controller{
             if(triangle.every((node,i,arr)=>node.type!=arr[(i+1)%arr.length==0]).type) reward_type=500
 			const area = this.triangle_area(triangle);
 			const reward =Math.floor(Math.sqrt((area)/reward_type))
-			console.log("reward is:",reward);
 			triangle.forEach(node => node.update_fitness(reward))
         })
 	}
@@ -116,6 +115,11 @@ class Neat_Controller{
 		})
 	}
 	get_all_triangles(living_nodes) {
+
+
+
+
+		
 		const triangle = (n1, n2, n3) => ([n1, n2, n3])
 		const contains_triangle = (arr, trig) => arr.find(x => x.includes(trig[0]) && x.includes(trig[1]) && x.includes(trig[2]))
 		const triangles = [];
@@ -152,9 +156,7 @@ class Neat_Controller{
 		const randx = Math.floor(Math.random() * this.width);
 		const randy = Math.floor(Math.random() * this.height);
 		const randt = Math.random() > 0.3 ? "A" : Math.random() > 0.3 ? "B" : "C";
-		console.time("pushnode");
 		this.collections.push(new Node(randx, randy, randt, this, node_ID.next().value));
-		console.timeEnd("pushnode");
 		console.count("x");
 	}
 	find_fitest_node(nodes){return nodes.sort((a,b)=>b.Brain.fitness-a.Brain.fitness)[0]}
@@ -162,9 +164,9 @@ class Neat_Controller{
 	reward(living_nodes){
 		living_nodes.forEach(node=>node.update_fitness(0.01));
 		living_nodes=this.fuck_over_wall_huggers(living_nodes);
-		living_nodes.forEach(n=>n.update_fitness(n.connections.filter(x=>x.type===n.type).length)-n.connections.filter(x=>x.type!==n.type).length);
-	//	const triangles = this.get_all_triangles(living_nodes);
-	//	this.reward_triangles(triangles)
+	//	living_nodes.forEach(n=>n.update_fitness(n.connections.filter(x=>x.type===n.type).length)-n.connections.filter(x=>x.type!==n.type).length);
+		const triangles = this.get_all_triangles(living_nodes);
+		this.reward_triangles(triangles)
 	}
 
 	render() {
@@ -185,7 +187,7 @@ class Neat_Controller{
 			const write_out={
 				exists:false
 			}
-			write_out.exists=true;
+			//write_out.exists=true;
 			if(write_out.exists){
 
 				process.stdout.moveCursor(-1000, -13)
@@ -241,7 +243,7 @@ ${pad("",100,"#")}`);
 
 		console.log("NEAT ALOGORITHM!!!!")
 		console.timeEnd("neat");		
-		console.log("\n\n\n\n\n\n\n\n\n\n\n\n");
+	//	console.log("\n\n\n\n\n\n\n\n\n\n\n\n");
     };
     seperate_into_species(){
         const species_pool=[];
@@ -313,12 +315,13 @@ ${pad("",100,"#")}`);
 		return mating_pool
 	}
 	set_next_brains(mating_pool,winning_node,champion){
-		console.log("mating pool leng",mating_pool.length);
+		console.log("mating pool leng",mating_pool.length,"colletions-length",this.collections.length);
         this.collections.forEach((node,i,arr)=>{
             if((node.id!==winning_node.id)){ // we skip the winning node - ensuring that it stays the same
                 if(i==0 || (i==1 && winning_node.id==arr[0].id)){
                     node.become_child_of(champion,champion);
-                    return;
+
+					return;
                 }
                 //p value weights in perceptron cells change by
                 //g is guard against mutation value - a higher number 
@@ -328,7 +331,7 @@ ${pad("",100,"#")}`);
                 let p2 = Math.floor(Math.random()*(filtered_pool.length-1))
                 let parent_2 = filtered_pool[p2]?.Brain||champion;
                 node.become_child_of(parent_1,parent_2);
-                
+
 				const p = Math.tanh(parent_1.fitness/parent_2.fitness);
 
 				const g = 0.101;//node.fitness/((this.best_fitness+winning_node.fitness)/2);	
@@ -336,7 +339,8 @@ ${pad("",100,"#")}`);
 					console.log(p,g,"something wrong captain");
 					
 				}
-                node.mutate_next(p,g)		
+                node.mutate_next(p,g)	
+	
             }
         })
 		console.log("mating finsihed");

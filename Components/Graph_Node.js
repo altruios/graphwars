@@ -27,6 +27,8 @@ class Graph_Node {
 		x:this.x.toFixed(2), 
 		y:this.y.toFixed(2),
 		r:this.r.toFixed(2),
+		bconns:this.Brain.connections.length,
+		bcells:this.Brain.cells.length,
 		type:this.type,
 		is_active:this.is_active,  
 		fitness:this.Brain.fitness.toFixed(2),
