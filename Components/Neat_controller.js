@@ -338,9 +338,7 @@ ${pad("",100,"#")}`);
 				if(isNaN(p)){
 					console.log(p,g,"something wrong captain");
 					
-				}
-                node.mutate_next(p,g)	
-	
+				}	
             }
         })
 		console.log("mating finsihed");

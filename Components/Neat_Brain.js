@@ -9,7 +9,6 @@ class Neat_Brain{
 		this.cells = []
 		this.connections=[]
         this.host = host;
-        this.scream=0;
 		this.last_move_vec = [0, 0, 0, 0];
         this.fitness=1;
         this.species=0;//iffy
@@ -59,10 +58,7 @@ class Neat_Brain{
 
     }
     check_connection(connection){
-            return connection.n1.is_active&&
-            connection.n2.is_active&&
-            (connection.n1.layer_number<connection.n2.layer_number)&&
-            (connection.is_active)
+            return connection.is_valid()
     }
     check_cell(cell,ac){
         return cell.is_active&&ac.filter(x=>x.n1.id==cell.id||x.n2.id==cell.id).length>=2
@@ -74,14 +70,15 @@ class Neat_Brain{
         active_hidden.forEach(cell=>{
             sanity_check=this.check_cell(cell,active_connections);
             if(!sanity_check){
-                cell.disable();
+           //     cell.disable();
+                console.log("failed sanilty cell:",cell.id);
                 sanity_check=true;
             }
         })
         active_connections.forEach(conn=>{
             sanity_check=this.check_connection(conn)
             if(!sanity_check){
-                conn.disable();
+                conn.should_be_valid();
                 console.log("failed sanity check conn",sanity_check,conn.in_id);                
                 sanity_check=true;
             }
@@ -106,7 +103,6 @@ class Neat_Brain{
             generation_number : this.generation_number,
     		cells :this.cells.map(x=>x.copy_data()),
     		connections:this.connections.map(x=>x.copy_data()),
-            scream:this.scream,
             last_move_vec:this.last_move_vec,
             fitness: this.fitness,
             species:this.species,
@@ -130,15 +126,16 @@ class Neat_Brain{
         parent_1_hidden_layer.forEach(cell=>hidden_layer.push(cell));
         parent_2_hidden_layer.forEach(cell=>{
             if(!hidden_layer.some(x=>x.id==cell.id)){
-                cell.deactivate();
-                hidden_layer.push(cell)}
+                const cell_template = cell.copy_data();
+                cell_template.is_active=false;
+                hidden_layer.push(cell_template)}
         });
 
         const new_cells = [...input_layer,...hidden_layer,...output_layer];
         new_cells.forEach(cell=>{
             const target = this.cells.find(c=>c.id==cell.id);
             if(!target){
-                this.cells.push(new Neat_Cell(cell.layer_number,this,cell.layer_index,cell.is_input_layer,cell.is_answer_layer,cell.is_active))
+                this.cells.push(new Neat_Cell(cell.layer_number,this,cell.layer_index,cell.is_input_layer,cell.is_answer_layer,true))
             }else{
                 target.child(cell);
             }
@@ -167,9 +164,9 @@ class Neat_Brain{
         })
 
 
-
-        this.all_hidden_cells_connected();
-        this.i_am_sane();
+        this.mutate_next()
+        //this.all_hidden_cells_connected();
+     //   this.i_am_sane();
 
 
     }
@@ -188,10 +185,6 @@ class Neat_Brain{
         this.add_or_delete_cell(value,gaurd);
         this.update_bias(value,gaurd);
         this.sort_cells();
-
-        this.all_hidden_cells_connected();
-
-        this.i_am_sane();
     }
     add_or_delete_weight(value,guard){
         if(Math.random()*.6<guard){
@@ -254,7 +247,7 @@ class Neat_Brain{
             }
         } 
     }
-    add_or_delete_cell(value,guard)
+    add_or_delete_cell()
         {
             //debug
        //     console.log(value,guard,"changed cell structure - should be rare");
@@ -264,23 +257,22 @@ class Neat_Brain{
                 if(found.length>0){
                     console.log("reactivating cell");
                     const target = found[Math.floor(found.length*Math.random())];
-                    let attached_weights = this.connections.filter(c=>c.is_active&&(c.n1.id==target.id||c.n2.id==target.id))
+                    let attached_weights = this.get_active_connections().filter(c=>(c.n1.id==target.id||c.n2.id==target.id))
                     const w1 = attached_weights.filter(c=>c.n1.is_active==true&&c.n2.id==target.id);
-                    const W1=w1[Math.floor(w1.length*Math.random())]
+                    let W1=w1[Math.floor(w1.length*Math.random())]
                     attached_weights=attached_weights.filter(x=>x.id!=w1.id)
                     const w2 = attached_weights.filter(c=>c.n1.is_active==true&&c.n2.id==target.id);
-                    const W2=w2[Math.floor(w2.length*Math.random())]
-
-                    try{
-                    W1.enable();
-                    W2.enable();
-                    target.enable();
-                    }catch{
-
-                    W1?.disable();
-                    W2?.disable();
-                    target?.deactivate();
+                    let W2=w2[Math.floor(w2.length*Math.random())]
+                    if(!W1){
+                        this.connections.push(new Connection(this.get_input_cells()[Math.floor(Math.random()*this.get_input_cells().length)],target,Math.random()*2-1))
+                        W1=this.connections[this.connections.length-1];
                     }
+                    if(!W2){
+                        this.connections.push(new Connection(this.get_input_cells()[Math.floor(Math.random()*this.get_input_cells().length)],target,Math.random()*2-1))
+                        W2=this.connections[this.connections.length-1];
+
+                    }
+                    
                 }else{
                     console.log("adding brand new cell");
                     this.add_cell()
@@ -301,16 +293,21 @@ class Neat_Brain{
     }
 
     calc_input_row_count(){
-        return this.vision_number*6+8 //vision closest, 8 props of each. and 8 props of self
+        return this.vision_number*5+8 //vision closest, 8 props of each. and 8 props of self
     }
 	init_cells() {
 		this.cells = [];
-		const answer_layer = 5; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
+		const answer_layer = 2; // x/ y/ ...controls=>{bool:bitmap_value_change_map}
 		const input_layer_length = this.calc_input_row_count();//
         for (let i = 0; i < 2; i++) {
 			const layer_breadth = i ==0?input_layer_length:answer_layer;
 			for (let j = 0; j < layer_breadth; j++) {
-				const cell = new Neat_Cell(i==0?0:this.depth, this, j,i==0,layer_breadth==answer_layer,true); //x y info, on graph.
+				const cell = new Neat_Cell(i==0? 0:this.depth, 
+                        this, 
+                        j,
+                        i==0,
+                        layer_breadth==answer_layer,
+                        true); //x y info, on graph.
 				this.cells.push(cell);
 			}
 		}
@@ -340,9 +337,7 @@ class Neat_Brain{
 	get_input_cells() {
 		return this.cells.filter(x => x.is_input_layer);
 	}
-	get_scream(){
-		return this.scream
-	}
+
 	get_fitness() {
 		return this.fitness;
 	}
@@ -395,23 +390,20 @@ class Neat_Brain{
         const data = this.get_data(other_nodes);
         const prediction = this.predict(data);
         this.last_move_vec = this.get_move_vector(prediction);
-        this.set_scream(prediction[4])
         return this.last_move_vec;
     }
  
-    set_scream(val){
-        this.scream = val;
-    }
+
 	get_move_vector(prediction) {
-		return [prediction[0], prediction[1], prediction[2], prediction[3]]
+		return [prediction[0], prediction[1]]
 	}
 	get_data(other_nodes) {
 		//okay ==so data is going to come in an array
 		const data = [];
 		data.push(this.last_move_vec[0])
 		data.push(this.last_move_vec[1])
-		data.push(this.last_move_vec[2])
-		data.push(this.last_move_vec[3])
+		data.push(do_to_real(this.x,[0,this.host.ref.width]))
+		data.push(do_to_real(this.y,[0,this.host.ref.width]))
 		//details
         data.push(do_to_real(this.host.r,[1,50]));
         const tf = this.host.ref.best_fitness==1?this.fitness:this.host.ref.best_fitness;
@@ -430,7 +422,6 @@ class Neat_Brain{
 					data.push(do_to_real(node.Brain.fitness,[0,top_fitness]))
 					data.push(do_to_real(node.r,[1,50]));
 					data.push(Trool(this.type,node.type))
-					data.push(node.Brain.scream)
 				})
 
 				for(let i=0;i< this.vision_number-ref.length;i++){
@@ -439,7 +430,7 @@ class Neat_Brain{
 
             }else{
                 for(let i=0;i<c;i++){
-                    for(let j=0;j<6;j++){
+                    for(let j=0;j<5;j++){
 						console.log('pushing blank data')
                         data.push(0);
                     }
@@ -599,8 +590,11 @@ class Connection{
         return conn.in_id==this.in_id;
     }
     is_valid(){
-        return this.n1.is_active&&this.n2.is_active;
+        return this.n1.is_active&&this.n2.is_active&&this.is_active;
     }
+    should_be_valid(){
+        this.is_active=this.n1.is_active&&this.n2.is_active; 
+   }
     get_in_id(){
         return __INNOVATION_TABLE(this.n1,this.n2)
     }
