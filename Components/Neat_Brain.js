@@ -403,7 +403,7 @@ class Neat_Brain{
 		data.push(this.last_move_vec[0])
 		data.push(this.last_move_vec[1])
 		data.push(do_to_real(this.x,[0,this.host.ref.width]))
-		data.push(do_to_real(this.y,[0,this.host.ref.width]))
+		data.push(do_to_real(this.y,[0,this.host.ref.height]))
 		//details
         data.push(do_to_real(this.host.r,[1,50]));
         const tf = this.host.ref.best_fitness==1?this.fitness:this.host.ref.best_fitness;
