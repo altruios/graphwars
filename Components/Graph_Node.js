@@ -195,9 +195,10 @@ class Graph_Node {
 	get_angle(other_node) {
 		const dx = other_node.x - this.x;
 		const dy = other_node.y - this.y;
-		const angle = Math.atan(dy, dx);
-		return angle;
-	}
+		theta = arctan(dy/dx)		
+		theta *= 180 / Math.PI; // rads to degs, range (-180, 180]
+		//if (theta < 0) theta = 360 + theta; // range [0, 360)
+		return theta;	}
 	scream(){
 		return this.Brain.get_scream();
 	}
